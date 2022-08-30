@@ -1,0 +1,3 @@
+file:tomcat-embed-core:webserver\lib
+url:CommissioningScripts-0.1.1.jar:https://github.com/automatic-controls/commissioning-scripts/releases/download/v0.1.1-beta/CommissioningScripts-0.1.1.jar
+url:CommissioningScripts-0.1.1-sources.jar:https://github.com/automatic-controls/commissioning-scripts/releases/download/v0.1.1-beta/CommissioningScripts-0.1.1-sources.jar

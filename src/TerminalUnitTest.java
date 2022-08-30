@@ -24,9 +24,9 @@ public class TerminalUnitTest extends Script {
   @Override public void init(){
     data = new Data[this.testsTotal];
     Arrays.fill(data,null);
-    testDampers = (Boolean)this.params.getOrDefault("Dampers",false);
-    testFans = (Boolean)this.params.getOrDefault("Fans",false);
-    testHeating = (Boolean)this.params.getOrDefault("Heating",false);
+    testDampers = this.params.getOrDefault("Dampers",false);
+    testFans = this.params.getOrDefault("Fans",false);
+    testHeating = this.params.getOrDefault("Heating",false);
     initialized = true;
   }
   @Override public void exec(ResolvedTestingUnit x) throws Throwable {
@@ -615,7 +615,7 @@ public class TerminalUnitTest extends Script {
           }else{
             sb.append("\n]\n},\n");
           }
-          sb.append(Utility.format("{\n\"name\":\"$0\",\n\"equipment\":[\n", escape(JSON,(String)this.mapping.groupNames.getOrDefault(group,"(Deleted Group)"))));
+          sb.append(Utility.format("{\n\"name\":\"$0\",\n\"equipment\":[\n", escape(JSON,this.mapping.groupNames.getOrDefault(group,"(Deleted Group)"))));
         }
         d.print(sb,JSON);
       }
@@ -625,7 +625,8 @@ public class TerminalUnitTest extends Script {
   private static String escape(boolean JSON, String s){
     return JSON?Utility.escapeJSON(s):Utility.escapeJS(s);
   }
-  class Data implements Comparable<Object> {
+  public final static int[] airflowX = new int[]{0,5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100};
+  class Data implements Comparable<Data> {
     private final static String tagAirflow = "airflow";
     private final static String tagAirflowMaxHeat = "airflow_max_heat";
     private final static String tagAirflowMaxCool = "airflow_max_cool";
@@ -665,7 +666,6 @@ public class TerminalUnitTest extends Script {
     public volatile boolean fanStartTest = false;
     public volatile boolean damperError = false;
     public volatile boolean damperResponse = true;
-    public final int[] airflowX = new int[]{0,5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100};
     public volatile Stats[] airflowY;
     private final static int airflowSamples = 5;
     public volatile double airflowMaxCoolValue = 0;
@@ -723,8 +723,8 @@ public class TerminalUnitTest extends Script {
           Thread.sleep(30000);
         }
         if (hasPump){
-          waitFor(180000, 3000, tagPumpStatus, new Predicate<Object>(){
-            public boolean test(Object s){
+          waitFor(180000, 3000, tagPumpStatus, new Predicate<String>(){
+            public boolean test(String s){
               return s.equals("0");
             }
           });
@@ -735,8 +735,8 @@ public class TerminalUnitTest extends Script {
         if (!x.setValueAutoMark(tagSFSSLockValue, 0) || !x.setValueAutoMark(tagSFSSLockFlag, true)){
           fanError = true; break fanTest;
         }
-        b = waitFor(180000, 3000, tagSFST, new Predicate<Object>(){
-          public boolean test(Object s){
+        b = waitFor(180000, 3000, tagSFST, new Predicate<String>(){
+          public boolean test(String s){
             return s.equals("0");
           }
         });
@@ -747,8 +747,8 @@ public class TerminalUnitTest extends Script {
         if (!x.setValueAutoMark(tagSFSSLockValue, 1)){
           fanError = true; break fanTest;
         }
-        b = waitFor(180000, 3000, tagSFST, new Predicate<Object>(){
-          public boolean test(Object s){
+        b = waitFor(180000, 3000, tagSFST, new Predicate<String>(){
+          public boolean test(String s){
             return s.equals("1");
           }
         });
@@ -759,8 +759,8 @@ public class TerminalUnitTest extends Script {
       } else if (hasFan && (hasDamper && testDampers || hasHeatAO && testHeating || hasPump && testHeating)){
         // If we're going to test dampers or heating/cooling elements, then we lock the fan on
         if (x.setValueAutoMark(tagSFSSLockValue, 1) && x.setValueAutoMark(tagSFSSLockFlag, true)){
-          b = waitFor(180000, 3000, tagSFST, new Predicate<Object>(){
-            public boolean test(Object s){
+          b = waitFor(180000, 3000, tagSFST, new Predicate<String>(){
+            public boolean test(String s){
               return s.equals("1");
             }
           });
@@ -788,9 +788,9 @@ public class TerminalUnitTest extends Script {
                 damperError = true; break damperTest;
               }
             }
-            b = waitFor(240000, 3000, tagDamperPosition, new Predicate<Object>(){
-              public boolean test(Object s){
-                return Math.abs(Double.parseDouble(s.toString())-pos)<1;
+            b = waitFor(240000, 3000, tagDamperPosition, new Predicate<String>(){
+              public boolean test(String s){
+                return Math.abs(Double.parseDouble(s)-pos)<1;
               }
             });
             if (b==null){
@@ -834,9 +834,9 @@ public class TerminalUnitTest extends Script {
             if (!x.setValueAutoMark(tagAirflowLockValue, airflowMaxHeatValue) || !x.setValueAutoMark(tagDamperLockFlag, false) || !x.setValueAutoMark(tagAirflowLockFlag, true)){
               heatingError = true; break heatTest;
             }
-            waitFor(240000, 3000, tagAirflow, new Predicate<Object>(){
-              public boolean test(Object s){
-                return Math.abs(Double.parseDouble(s.toString())-airflowMaxHeatValue)<50;
+            waitFor(240000, 3000, tagAirflow, new Predicate<String>(){
+              public boolean test(String s){
+                return Math.abs(Double.parseDouble(s)-airflowMaxHeatValue)<50;
               }
             });
             final long dif = lim-System.currentTimeMillis();
@@ -915,8 +915,8 @@ public class TerminalUnitTest extends Script {
           if (!x.setValueAutoMark(tagPumpRevLockValue,0) || !x.setValueAutoMark(tagPumpRevLockFlag,true) || !x.setValueAutoMark(tagPumpCmdLockValue,0) || !x.setValueAutoMark(tagPumpCmdLockFlag,true)){
             heatingError = true; break heatTest;
           }
-          b = waitFor(180000, 3000, tagPumpStatus, new Predicate<Object>(){
-            public boolean test(Object s){
+          b = waitFor(180000, 3000, tagPumpStatus, new Predicate<String>(){
+            public boolean test(String s){
               return s.equals("0");
             }
           });
@@ -1073,7 +1073,7 @@ public class TerminalUnitTest extends Script {
       }
       return false;
     }
-    private Boolean waitFor(long timeout, long interval, String tag, Predicate<Object> test) throws Throwable {
+    private Boolean waitFor(long timeout, long interval, String tag, Predicate<String> test) throws Throwable {
       final long lim = System.currentTimeMillis()+timeout;
       String s;
       do {
@@ -1209,16 +1209,11 @@ public class TerminalUnitTest extends Script {
       }
       sb.append("\n}");
     }
-    @Override public int compareTo(Object obj){
-      if (obj instanceof Data){
-        Data t = (Data)obj;
-        if (group==t.group){
-          return path.compareTo(t.path);
-        }else{
-          return group-t.group;
-        }
+    @Override public int compareTo(Data d){
+      if (group==d.group){
+        return path.compareTo(d.path);
       }else{
-        return -1;
+        return group-d.group;
       }
     }
   }

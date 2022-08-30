@@ -98,12 +98,12 @@ The remaining three error messages are thrown during the data analysis phase. Wh
 
 ### Sample Output
 
-![](./report1.png)
-![](./report2.png)
+![](./resources/report1.png)
+![](./resources/report2.png)
 
 ## Mappings
 
-Control programs with dampers should be grouped by air source. By limiting the percentage of active tests per group, we can avoid tripping the high static safety alarm on the RTU air source (for a worst case scenario, imagine all VAV dampers locked to 0% while the RTU supply fan is still pumping air into the system). If there are hot water valves, you should also consider grouping by water source. See the following table for a list of mapping tags for this script. Also see [./tags.json](./tags.json) for the tag mappings I used while testing this script.
+Control programs with dampers should be grouped by air source. By limiting the percentage of active tests per group, we can avoid tripping the high static safety alarm on the RTU air source (for a worst case scenario, imagine all VAV dampers locked to 0% while the RTU supply fan is still pumping air into the system). If there are hot water valves, you should also consider grouping by water source. See the following table for a list of mapping tags for this script. Also see [./resources/tags.json](./resources/tags.json) for the tag mappings I used while testing this script.
 
 | Semantic Tag | Sample Expression | Description |
 | - | - | - |
