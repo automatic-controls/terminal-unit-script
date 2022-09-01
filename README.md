@@ -1,8 +1,8 @@
-# Terminal Unit Commissioning Script v0.1.0
+# Terminal Unit Commissioning Script
 
 WebCTRL is a trademark of Automated Logic Corporation. Any other trademarks mentioned herein are the property of their respective owners.
 
-- [Terminal Unit Commissioning Script v0.1.0](#terminal-unit-commissioning-script-v010)
+- [Terminal Unit Commissioning Script](#terminal-unit-commissioning-script)
   - [Overview](#overview)
   - [High-Level Pseudocode](#high-level-pseudocode)
     - [Supply Fan, Damper, and Hot Water Valve](#supply-fan-damper-and-hot-water-valve)

@@ -5,7 +5,7 @@ echo.
 :: Modify these parameters when necessary
 set "WebCTRL=C:\WebCTRL8.0"
 set "mainClass=TerminalUnitTest"
-set "package="
+set "package=aces\webctrl\scripts\terminalunits\"
 set "jdk=%JAVA_HOME%\bin"
 set "release=8"
 
@@ -34,7 +34,7 @@ if %ERRORLEVEL% NEQ 0 (
 echo Packing...
 robocopy /E "%~dp0src" "%classes%" /XF "*.java" >nul 2>nul
 if exist "%~dp0%mainClass%.jar" del /F "%~dp0%mainClass%.jar" >nul 2>nul
-"%jdk%\jar.exe" --create --verbose --file "%~dp0%mainClass%.jar" --main-class "%package%%mainClass%" -C "%classes%" . >nul
+"%jdk%\jar.exe" --create --verbose --file "%~dp0%mainClass%.jar" --main-class "%package:\=.%%mainClass%" -C "%classes%" . >nul
 if %ERRORLEVEL% NEQ 0 (
   rmdir /S /Q "%classes%" >nul
   echo.

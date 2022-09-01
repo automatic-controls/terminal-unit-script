@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Terminal Unit Report</title>
+    __CSS__
+    <script>
+      function scatter(w, h, xData, yData, xFit, yFit, xSuffix, ySuffix, success) {
+        if (xData.length !== yData.length || xFit.length !== yFit.length) {
+          console.log("Error: Data length mismatch.");
+          return undefined;
+        }
+        if (xData.length === 0) {
+          console.log("Data must be non-empty.");
+          return undefined;
+        }
+        if (!xSuffix) {
+          xSuffix = "";
+        }
+        if (!ySuffix) {
+          ySuffix = "";
+        }
+        w = Math.round(w);
+        h = Math.round(h);
+        if (w === 0) {
+          w = 10;
+        }
+        if (h === 0) {
+          h = 10;
+        }
+        const r = (w + h) / 220;
+        let xMin = Math.min(0, ...xData, ...xFit);
+        let xMax = Math.max(0, ...xData, ...xFit);
+        if (xMin === xMax) {
+          xMax = 1;
+        }
+        let xRange = (xMax - xMin) / 40;
+        xMin -= xRange;
+        xMax += xRange;
+        xRange = xMax - xMin;
+        const xDecimals = Math.max(0, Math.round(2.2 - Math.log10(xRange)));
+        if (xDecimals < 0) {
+          xDecimals = 0;
+        } else if (xDecimals > 99) {
+          xDecimals = 99;
+        }
+        const xFn = function (x) {
+          return Math.round((x - xMin) * w / xRange);
+        };
+        const xOrigin = xFn(0);
+        const xxData = [];
+        for (const x of xData) {
+          xxData.push(xFn(x));
+        }
+        let yMin = Math.min(0, ...yData, ...yFit);
+        let yMax = Math.max(0, ...yData, ...yFit);
+        if (yMin === yMax) {
+          yMax = 1;
+        }
+        let yRange = (yMax - yMin) / 40;
+        yMin -= yRange;
+        yMax += yRange;
+        yRange = yMax - yMin;
+        const yDecimals = Math.max(0, Math.round(2.2 - Math.log10(yRange)));
+        if (yDecimals < 0) {
+          yDecimals = 0;
+        } else if (yDecimals > 99) {
+          yDecimals = 99;
+        }
+        const yFn = function (y) {
+          return Math.round(h - (y - yMin) * h / yRange - 1);
+        };
+        const yOrigin = yFn(0);
+        const yyData = [];
+        for (const y of yData) {
+          yyData.push(yFn(y));
+        }
+        const canvas = document.createElement("CANVAS");
+        canvas.onmouseleave = function (e) {
+          popup.style.display = "none";
+        };
+        canvas.onmousemove = function (e) {
+          if (e.ctrlKey || e.shiftKey) {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            let j = 0;
+            let rr = -1;
+            for (var i = 0; i < xData.length; ++i) {
+              const rtmp = (x - xxData[i]) ** 2 + (y - yyData[i]) ** 2;
+              if (rr === -1 || rtmp < rr) {
+                rr = rtmp;
+                j = i;
+              }
+            }
+            popup.innerText = '(' + xData[j].toFixed(xDecimals) + xSuffix + ", " + yData[j].toFixed(yDecimals) + ySuffix + ')';
+            popup.style.left = String(Math.round(rect.left + xxData[j] - popup.offsetWidth / 2 + window.scrollX)) + "px";
+            popup.style.top = String(Math.round(rect.top + yyData[j] + popup.offsetHeight / 2 + window.scrollY)) + "px";
+            popup.style.display = "inline-block";
+          } else {
+            const rect = canvas.getBoundingClientRect();
+            popup.innerText = '(' + ((e.clientX - rect.left) * xRange / w + xMin).toFixed(xDecimals) + xSuffix + ", " + ((h - e.clientY + rect.top - 1) * yRange / h + yMin).toFixed(yDecimals) + ySuffix + ')';
+            popup.style.left = String(Math.round(e.clientX - popup.offsetWidth / 2 + window.scrollX)) + "px";
+            popup.style.top = String(Math.round(e.clientY + popup.offsetHeight + window.scrollY)) + "px";
+            popup.style.display = "inline-block";
+          }
+        };
+        canvas.onmouseover = canvas.onmousemove;
+        canvas.onmouseenter = canvas.onmousemove;
+        canvas.setAttribute("width", w);
+        canvas.setAttribute("height", h);
+        canvas.style.display = "block";
+        canvas.style.userSelect = "none";
+        canvas.style.backgroundColor = "black";
+        canvas.style.cursor = "crosshair";
+        const ctx = canvas.getContext("2d");
+        ctx.globalAlpha = 1;
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "steelblue";
+        ctx.beginPath();
+        ctx.moveTo(xOrigin, 0);
+        ctx.lineTo(xOrigin, h);
+        ctx.moveTo(0, yOrigin);
+        ctx.lineTo(w, yOrigin);
+        ctx.stroke();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = success ? "forestgreen" : "crimson";
+        ctx.beginPath();
+        for (var i = 0; i < xFit.length; ++i) {
+          const x = xData === xFit ? xxData[i] : xFn(xFit[i]);
+          const y = yData === yFit ? yyData[i] : yFn(yFit[i]);
+          if (i === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        }
+        ctx.stroke();
+        ctx.fillStyle = success ? "deepskyblue" : "lightgrey";
+        ctx.beginPath();
+        for (var i = 0; i < xData.length; ++i) {
+          const x = xxData[i];
+          const y = yyData[i];
+          ctx.moveTo(x, y);
+          ctx.arc(x, y, r, 0, 2 * Math.PI);
+        }
+        ctx.fill();
+        return canvas;
+      }
+      function draw(parent, data) {
+        const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0) / 5;
+        const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0) / 4;
+        for (const x of data) {
+          const table = document.createElement("TABLE");
+          table.style.userSelect = "none";
+          const thead = document.createElement("THEAD");
+          const tbody = document.createElement("TBODY");
+          table.appendChild(thead);
+          table.appendChild(tbody);
+          const trTitle = document.createElement("TR");
+          const trHeaders = document.createElement("TR");
+          thead.appendChild(trTitle);
+          thead.appendChild(trHeaders);
+          const tdTitle = document.createElement("TD");
+          trTitle.appendChild(tdTitle);
+          tdTitle.style.fontSize = "150%";
+          tdTitle.style.fontWeight = "bold";
+          tdTitle.style.color = "aquamarine";
+          tdTitle.innerText = x["name"];
+          tdTitle.setAttribute("colspan", "6");
+          const thPath = document.createElement("TH");
+          trHeaders.appendChild(thPath);
+          thPath.innerText = "Location";
+          const thDuration = document.createElement("TH");
+          trHeaders.appendChild(thDuration);
+          thDuration.innerText = "Duration";
+          if (testFans) {
+            const thFanStart = document.createElement("TH");
+            const thFanStop = document.createElement("TH");
+            trHeaders.appendChild(thFanStart);
+            trHeaders.appendChild(thFanStop);
+            thFanStart.innerText = "Fan Start";
+            thFanStop.innerText = "Fan Stop";
+          }
+          if (testDampers) {
+            const thDamper = document.createElement("TH");
+            trHeaders.appendChild(thDamper);
+            thDamper.innerText = "Damper Airflow";
+          }
+          if (testHeatAO) {
+            const thHeatAO = document.createElement("TH");
+            trHeaders.appendChild(thHeatAO);
+            thHeatAO.innerText = "Temperature Differential";
+          }
+          for (const y of x["equipment"]) {
+            const tr = document.createElement("TR");
+            tr.equipmentIdentifier = y["path"];
+            const tdPath = document.createElement("TD");
+            const a = document.createElement("A");
+            a.innerText = y["path"];
+            a.href = y["link"];
+            a.style.border = "none";
+            a.setAttribute("target", "_blank");
+            tdPath.appendChild(a);
+            tr.appendChild(tdPath);
+            const tdDuration = document.createElement("TD");
+            tdDuration.innerText = y["duration"].toFixed(1) + " min";
+            tdDuration.title = y["start"] + "  -  " + y["stop"];
+            tr.appendChild(tdDuration);
+            if (testFans) {
+              const fan = y["fan"];
+              if (!fan || fan["error"]) {
+                const tdFan = document.createElement("TD");
+                tdFan.setAttribute("colspan", "2");
+                if (fan) {
+                  tdFan.innerText = "Error";
+                  tdFan.style.backgroundColor = "purple";
+                }
+                tr.appendChild(tdFan);
+              } else {
+                const tdFanStart = document.createElement("TD");
+                const tdFanStop = document.createElement("TD");
+                tdFanStart.innerText = fan["start"] ? "Success" : "Unresponsive";
+                tdFanStop.innerText = fan["stop"] ? "Success" : "Unresponsive";
+                tdFanStart.style.backgroundColor = fan["start"] ? "darkgreen" : "darkred";
+                tdFanStop.style.backgroundColor = fan["stop"] ? "darkgreen" : "darkred";
+                tr.appendChild(tdFanStart);
+                tr.appendChild(tdFanStop);
+              }
+            }
+            if (testDampers) {
+              const damper = y["damper"];
+              const tdDamper = document.createElement("TD");
+              tr.appendChild(tdDamper);
+              if (!damper || damper["error"]) {
+                if (damper) {
+                  tdDamper.innerText = "Error";
+                  tdDamper.style.backgroundColor = "purple";
+                }
+              } else if (damper["response"]) {
+                let success = true;
+                //const xData = damper["xFit"];
+                const yData = damper["yFit"];
+                const yMax = Math.max(...yData);
+                const yMaxStr = yMax.toFixed(0);
+                if (useMaxCooling.checked && damper["maxCool"] && yMax < damper["maxCool"] * (100 - Number(damperMargin.value)) / 100) {
+                  success = false;
+                } else {
+                  const margin = yMax * Number(damperMargin.value) / 100;
+                  if (Math.abs(yData[0]) < margin) {
+                    let prev = yData[0];
+                    for (const cur of yData) {
+                      if (prev > cur + margin) {
+                        success = false;
+                        break;
+                      }
+                      prev = cur;
+                    }
+                  } else {
+                    success = false;
+                  }
+                }
+                const canvas = scatter(vw, vh, damper["x"], damper["y"], damper["xFit"], damper["yFit"], "%", " cfm", success);
+                tdDamper.style.cursor = "pointer";
+                tdDamper.style.backgroundColor = success ? "darkgreen" : "darkred";
+                canvas.shown = !graphsVisible;
+                tdDamper.onclick = function () {
+                  canvas.shown = !canvas.shown;
+                  tr.damperVisible = canvas.shown;
+                  if (canvas.shown) {
+                    tdDamper.replaceChildren(canvas);
+                    tdDamper.title = "";
+                  } else {
+                    tdDamper.replaceChildren((success ? "Success" : "Failure") + ": " + yMaxStr + " cfm");
+                    if (damper["maxCool"] && damper["maxCool"] > 0) {
+                      tdDamper.title = "Max Cooling = " + damper["maxCool"] + " cfm";
+                    }
+                    canvas.onmouseleave();
+                  }
+                };
+                tdDamper.onclick();
+                tr.toggleDamperGraph = function (b) {
+                  if (b ^ canvas.shown) {
+                    tdDamper.onclick();
+                  }
+                };
+              } else {
+                tdDamper.innerText = "Unresponsive";
+                tdDamper.style.backgroundColor = "darkred";
+              }
+            }
+            if (testHeatAO) {
+              const heatAO = y["heatAO"];
+              const tdHeatAO = document.createElement("TD");
+              tr.appendChild(tdHeatAO);
+              if (!heatAO || heatAO["error"]) {
+                if (heatAO) {
+                  tdHeatAO.innerText = "Error";
+                  tdHeatAO.style.backgroundColor = "purple";
+                }
+              } else if (heatAO["failure"]) {
+                if (heatAO["failMsg"]) {
+                  tdHeatAO.innerText = heatAO["failMsg"];
+                } else {
+                  tdHeatAO.innerText = "Failure";
+                }
+                tdHeatAO.style.backgroundColor = "darkred";
+              } else {
+                const cooling = heatAO["cooling"];
+                let success = true;
+                const xData = heatAO["x"];
+                const yData = heatAO["y"];
+                const yMax = Math.max(...yData);
+                const yMin = Math.min(...yData);
+                let yMsg = "";
+                const erraticLim = 6 * Number(erraticMargin.value);
+                {
+                  let yPrev = yData[0];
+                  let xPrev = xData[0];
+                  for (var i = 0; i < yData.length; ++i) {
+                    if (xData[i] !== xPrev && Math.abs((yData[i] - yPrev) / (xData[i] - xPrev)) > erraticLim) {
+                      success = false;
+                      yMsg += "Erratic, ";
+                      break;
+                    }
+                    yPrev = yData[i];
+                    xPrev = xData[i];
+                  }
+                }
+                if (yMax < Number(heatAOMargin.value)) {
+                  success = false;
+                  yMsg += "Heating, ";
+                }
+                if (cooling && yMin > -Number(coolMargin.value)) {
+                  success = false;
+                  yMsg += "Cooling, ";
+                }
+                if (success) {
+                  yMsg = "Success: " + yMsg;
+                }
+                yMsg += (yMax - yMin).toFixed(1) + " \\u{00B0}F";
+                const canvas = scatter(vw, vh, heatAO["x"], heatAO["y"], heatAO["x"], heatAO["y"], " min", " \\u{00B0}F", success);
+                tdHeatAO.style.cursor = "pointer";
+                tdHeatAO.style.backgroundColor = success ? "darkgreen" : "darkred";
+                canvas.shown = !graphsVisible;
+                tdHeatAO.onclick = function () {
+                  canvas.shown = !canvas.shown;
+                  tr.heatAOVisible = canvas.shown;
+                  if (canvas.shown) {
+                    tdHeatAO.replaceChildren(canvas);
+                  } else {
+                    tdHeatAO.replaceChildren(yMsg);
+                    canvas.onmouseleave();
+                  }
+                };
+                tdHeatAO.onclick();
+                tr.toggleHeatAOGraph = function (b) {
+                  if (b ^ canvas.shown) {
+                    tdHeatAO.onclick();
+                  }
+                };
+              }
+            }
+            tbody.appendChild(tr);
+          }
+          parent.appendChild(document.createElement("BR"));
+          parent.appendChild(table);
+        }
+      }
+      function toggleGraphs() {
+        graphsVisible = !graphsVisible;
+        for (const tr of document.getElementById("mainDiv").getElementsByTagName("TR")) {
+          if (tr.toggleDamperGraph) {
+            tr.toggleDamperGraph(graphsVisible);
+          }
+          if (tr.toggleHeatAOGraph) {
+            tr.toggleHeatAOGraph(graphsVisible);
+          }
+        }
+      }
+      function reloadData() {
+        graphsVisible = false;
+        const mainDiv = document.getElementById("mainDiv");
+        const heatAOSet = new Set();
+        const damperSet = new Set();
+        for (const tr of mainDiv.getElementsByTagName("TR")) {
+          if (tr.equipmentIdentifier) {
+            if (tr.heatAOVisible) {
+              heatAOSet.add(tr.equipmentIdentifier);
+            }
+            if (tr.damperVisible) {
+              damperSet.add(tr.equipmentIdentifier);
+            }
+          }
+        }
+        let e = mainDiv.lastElementChild;
+        while (e && e.id !== "dataAfterBreak") {
+          const tmp = e;
+          e = e.previousElementSibling;
+          mainDiv.removeChild(tmp);
+        }
+        draw(mainDiv, DATA);
+        for (const tr of mainDiv.getElementsByTagName("TR")) {
+          if (tr.equipmentIdentifier) {
+            if (tr.toggleHeatAOGraph && heatAOSet.has(tr.equipmentIdentifier)) {
+              tr.toggleHeatAOGraph(true);
+            }
+            if (tr.toggleDamperGraph && damperSet.has(tr.equipmentIdentifier)) {
+              tr.toggleDamperGraph(true);
+            }
+          }
+        }
+      }
+      function prepareDataExport() {
+        if (exportDataButton.getAttribute("href").length === 1 && DATA) {
+          exportDataButton.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(JSON.stringify(DATA, undefined, 2)));
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="popup" style="display:none;position:absolute;cursor:default;color:yellow;pointer-events:none;"></div>
+    <div id="mainDiv" class="c">
+      <h1>Terminal Unit Report</h1>
+      <button class="e" onclick="reloadData()">Reevaluate Data Tolerances</button>
+      <button class="e" onclick="toggleGraphs()">Toggle Graph Visibility</button>
+      <a class="e" id="exportDataButton" href="#" download="data.json" onclick="prepareDataExport()">Export Data</a>
+      <br>
+      <div class="divGrouping">
+        <input type="checkbox" id="useMaxCooling">
+        <label for="useMaxCooling" id="useMaxCoolingLabel">Should Damper Airflow Exceed Maximum Cooling Design Parameter?</label>
+      </div>
+      <br id="damperMarginBreak">
+      <div class="divGrouping">
+        <label for="damperMargin" id="damperMarginLabel"></label>
+        <input type="range" style="width:35vw" min="0" max="15" step="0.1" value="3" id="damperMargin"
+          oninput="damperMarginLabel.innerText='Damper Airflow Tolerance ('+Number(damperMargin.value).toFixed(1)+'%):'">
+      </div>
+      <br id="heatAOMarginBreak">
+      <div class="divGrouping">
+        <label for="heatAOMargin" id="heatAOMarginLabel"></label>
+        <input type="range" style="width:35vw" min="0" max="50" step="1" value="15" id="heatAOMargin"
+          oninput="heatAOMarginLabel.innerText='Minimum Heating Differential ('+heatAOMargin.value+' \\u{00B0}F):'">
+      </div>
+      <br id="coolMarginBreak">
+      <div class="divGrouping">
+        <label for="coolMargin" id="coolMarginLabel"></label>
+        <input type="range" style="width:35vw" min="0" max="50" step="1" value="10" id="coolMargin"
+          oninput="coolMarginLabel.innerText='Minimum Cooling Differential ('+coolMargin.value+' \\u{00B0}F):'">
+      </div>
+      <br id="erraticMarginBreak">
+      <div class="divGrouping">
+        <label for="erraticMargin" id="erraticMarginLabel"></label>
+        <input type="range" style="width:35vw" min="3" max="30" step="0.2" value="10" id="erraticMargin"
+          oninput="erraticMarginLabel.innerText='Erratic Thermostat Threshhold ('+Number(erraticMargin.value).toFixed(1)+' \\u{00B0}F):'">
+      </div>
+      __PROGRESS_BAR__
+    </div>
+    <br><br>
+    <script>
+      damperMargin.oninput();
+      heatAOMargin.oninput();
+      coolMargin.oninput();
+      erraticMargin.oninput();
+      var graphsVisible = false;
+      var testFans = __TEST_FANS__;
+      var testDampers = __TEST_DAMPERS__;
+      var testHeatAO = __TEST_HEATING__;
+      if (!testDampers) {
+        useMaxCooling.style.display = "none";
+        useMaxCoolingLabel.style.display = "none";
+        damperMarginBreak.style.display = "none";
+        damperMargin.style.display = "none";
+        damperMarginLabel.style.display = "none";
+      }
+      if (!testHeatAO) {
+        heatAOMarginBreak.style.display = "none";
+        heatAOMargin.style.display = "none";
+        heatAOMarginLabel.style.display = "none";
+        coolMarginBreak.style.display = "none";
+        coolMargin.style.display = "none";
+        coolMarginLabel.style.display = "none";
+        erraticMarginBreak.style.display = "none";
+        erraticMargin.style.display = "none";
+        erraticMarginLabel.style.display = "none";
+      }
+      var DATA = __DATA__;
+      draw(mainDiv, DATA);
+      if (__NOT_EXITED__) {
+        const f = function () {
+          const req = new XMLHttpRequest();
+          req.open("GET", window.location.href + "&AJAX");
+          req.onreadystatechange = function () {
+            if (this.readyState === 4) {
+              if (this.status === 200) {
+                try {
+                  const ret = JSON.parse(this.responseText);
+                  DATA = ret["data"];
+                  if (testsStartedBar) {
+                    testsStartedBar.style.width = String(ret["started"]) + '%';
+                  }
+                  if (testsCompletedBar) {
+                    testsCompletedBar.style.width = String(ret["completed"]) + '%';
+                  }
+                  reloadData();
+                } catch (e) {
+                  console.error(e);
+                }
+                setTimeout(f, 60000);
+              } else if (this.status === 404) {
+                window.location.reload();
+              }
+            }
+          };
+          req.send();
+        };
+        setTimeout(f, 60000);
+      }
+    </script>
+  </body>
+</html>

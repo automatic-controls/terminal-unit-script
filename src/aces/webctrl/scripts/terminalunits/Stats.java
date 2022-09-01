@@ -1,3 +1,4 @@
+package aces.webctrl.scripts.terminalunits;
 public class Stats {
   public volatile double[] arr;
   public volatile double mean = 0;
