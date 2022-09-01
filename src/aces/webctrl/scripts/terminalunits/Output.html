@@ -337,8 +337,8 @@
                 if (success) {
                   yMsg = "Success: " + yMsg;
                 }
-                yMsg += (yMax - yMin).toFixed(1) + " \\u{00B0}F";
-                const canvas = scatter(vw, vh, heatAO["x"], heatAO["y"], heatAO["x"], heatAO["y"], " min", " \\u{00B0}F", success);
+                yMsg += (yMax - yMin).toFixed(1) + " \u{00B0}F";
+                const canvas = scatter(vw, vh, heatAO["x"], heatAO["y"], heatAO["x"], heatAO["y"], " min", " \u{00B0}F", success);
                 tdHeatAO.style.cursor = "pointer";
                 tdHeatAO.style.backgroundColor = success ? "darkgreen" : "darkred";
                 canvas.shown = !graphsVisible;
@@ -439,19 +439,19 @@
       <div class="divGrouping">
         <label for="heatAOMargin" id="heatAOMarginLabel"></label>
         <input type="range" style="width:35vw" min="0" max="50" step="1" value="15" id="heatAOMargin"
-          oninput="heatAOMarginLabel.innerText='Minimum Heating Differential ('+heatAOMargin.value+' \\u{00B0}F):'">
+          oninput="heatAOMarginLabel.innerText='Minimum Heating Differential ('+heatAOMargin.value+' \u{00B0}F):'">
       </div>
       <br id="coolMarginBreak">
       <div class="divGrouping">
         <label for="coolMargin" id="coolMarginLabel"></label>
         <input type="range" style="width:35vw" min="0" max="50" step="1" value="10" id="coolMargin"
-          oninput="coolMarginLabel.innerText='Minimum Cooling Differential ('+coolMargin.value+' \\u{00B0}F):'">
+          oninput="coolMarginLabel.innerText='Minimum Cooling Differential ('+coolMargin.value+' \u{00B0}F):'">
       </div>
       <br id="erraticMarginBreak">
       <div class="divGrouping">
         <label for="erraticMargin" id="erraticMarginLabel"></label>
         <input type="range" style="width:35vw" min="3" max="30" step="0.2" value="10" id="erraticMargin"
-          oninput="erraticMarginLabel.innerText='Erratic Thermostat Threshhold ('+Number(erraticMargin.value).toFixed(1)+' \\u{00B0}F):'">
+          oninput="erraticMarginLabel.innerText='Erratic Thermostat Threshhold ('+Number(erraticMargin.value).toFixed(1)+' \u{00B0}F):'">
       </div>
       __PROGRESS_BAR__
     </div>
