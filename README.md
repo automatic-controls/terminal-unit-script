@@ -243,7 +243,7 @@ It is suggested to have seasonal mappings for some equipment. For instance, it m
 4. Wait up to *260 seconds* for the supply fan status feedback to turn off.
 5. Lock the supply fan on.
 6. Wait up to *260 seconds* for the supply fan status feedback to turn on.
-7. Repeat the following for $x\in\{100,95,90,85,80,75,70,65,60,55,50,45,40,35,30,25,20,15,10,5,0\}$
+7. Repeat the following for $x\in\\{100,95,90,85,80,75,70,65,60,55,50,45,40,35,30,25,20,15,10,5,0\\}$
    1. Lock the airflow damper to $x$ *percent*.
    2. Wait up to *260* seconds for the measured airflow damper position to be within *1%* of $x$.
    3. Measure the airflow *5 times* at *2 second* intervals, and record the averaged result.
