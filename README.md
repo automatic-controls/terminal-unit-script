@@ -4,97 +4,57 @@ WebCTRL is a trademark of Automated Logic Corporation. Any other trademarks ment
 
 - [Terminal Unit Commissioning Script](#terminal-unit-commissioning-script)
   - [Overview](#overview)
-  - [High-Level Pseudocode](#high-level-pseudocode)
-    - [Supply Fan, Damper, and Hot Water Valve](#supply-fan-damper-and-hot-water-valve)
-    - [Supply Fan and Heat Pump](#supply-fan-and-heat-pump)
   - [Interpreting Results](#interpreting-results)
-    - [Supply Fan Tests](#supply-fan-tests)
-    - [Damper Airflow Tests](#damper-airflow-tests)
-    - [Heating/Cooling Performance Tests](#heatingcooling-performance-tests)
+    - [General Tests](#general-tests)
     - [Sample Output](#sample-output)
   - [Mappings](#mappings)
+    - [Sensors](#sensors)
+    - [Locked Points](#locked-points)
+    - [Dehumidification](#dehumidification)
+    - [Airflow Dampers](#airflow-dampers)
+    - [OA / RA Dampers](#oa--ra-dampers)
+    - [Fans](#fans)
+    - [Heating / Cooling Elements](#heating--cooling-elements)
+  - [Sample Mapping + Pseudocode](#sample-mapping--pseudocode)
+    - [Airflow Damper, Supply Fan, HW Valve, Two Stage Cooling](#airflow-damper-supply-fan-hw-valve-two-stage-cooling)
 
 ## Overview
 
-Refer to the [Commissioning Scripts](https://github.com/automatic-controls/commissioning-scripts) add-on for WebCTRL. This script [(download link)](https://github.com/automatic-controls/terminal-unit-script/releases/latest/download/TerminalUnitTest.jar) is intended to evaluate performance of control programs which optionally include a supply fan, damper, and heating element. Evaluating more than one of each component in a single control program is not yet supported. For example, this script should not be used to evaluate a program which controls two heat pumps at once.
+Refer to the [Commissioning Scripts](https://github.com/automatic-controls/commissioning-scripts) add-on for WebCTRL. This script [(download link)](https://github.com/automatic-controls/terminal-unit-script/releases/latest/download/TerminalUnitTest.jar) supports the following control schemes:
 
-Supply fan evaluation requires a binary output to command the fan and a binary input to monitor status. Damper evaluation requires an airflow microblock in the control program (works with controllers [ZN141A](https://www.automatedlogic.com/en/products/webctrl-building-automation-system/building-controllers/zn141a/), [ZN341A](https://www.automatedlogic.com/en/products/webctrl-building-automation-system/building-controllers/zn341a/), [OF141-E2](https://www.automatedlogic.com/en/products/webctrl-building-automation-system/building-controllers/OF141-E2/), and [OF342-E2](https://www.automatedlogic.com/en/products/webctrl-building-automation-system/building-controllers/OF342-E2/)). There are two heating configurations which can be evaluated. The first configuration requires a single analog output to vary heating output between 0 and 100 (e.g, hot water valves and SCR electric heat). The second configuration is intended for heat pumps (requires a binary output to command the compressor, a binary input to monitor compressor status, and another binary output to command the reversing valve). Note that cooling performance is also evaluated for heat pumps.
+- **Airflow Damper** - Creates and analyzes a graph of airflow (*cfm*) vs damper position (*%*). Intended for use with dampers controlled by an airflow microblock (e.g, the integrated dampers on [ZN141A](https://www.automatedlogic.com/en/products/webctrl-building-automation-system/building-controllers/zn141a/), [ZN341A](https://www.automatedlogic.com/en/products/webctrl-building-automation-system/building-controllers/zn341a/), [OF141-E2](https://www.automatedlogic.com/en/products/webctrl-building-automation-system/building-controllers/OF141-E2/), and [OF342-E2](https://www.automatedlogic.com/en/products/webctrl-building-automation-system/building-controllers/OF342-E2/). When heating/cooling elements are tested, the airflow setpoint is set to the heating/cooling maximum.
+- **Fans** - Performs start/stop tests on any number of fans. Requires a binary/analog output to command each fan on or off. Optionally may include a second output which controls VFD speed. The script expects a binary input for monitoring fan status. When testing airflow dampers and heating/cooling elements, all fans are commanded on to ensure adequate airflow.
+- **Heating / Cooling Elements** - Creates and analyzes a graph of temperature (*&deg;F*) vs time (*minutes*). Requires an output for turning each element on/off. Also requires a leaving air temperature sensor, but an entering air temperature sensor is optional. An optional status input and reversing output may be included. The reversing output control is designed to switch the mode of an element from heating to cooling or vice versa.
+- **Dehumidification** - Creates and analyzes a graph of humidity (*%*) vs time (*minutes*). Requires a binary/analog output for commanding dehumidification to turn on/off. Temperature is also monitored for the duration of this test to verify that dehumidification mode does not significantly alter temperature.
+- **OA / RA Dampers** - For the duration of all tests, the OA damper is fully closed, and the RA damper is fully opened. In the future, I may implement logic to test economizing capabilities of OA / RA dampers.
 
-To evaluate performance of any heating component, a leaving air temperature sensor is required. An entering air temperature sensor is also recommended but not required. The idea is to monitor the temperature differential across a heating element over time. We expect the temperature differential to increase when heating is increased. If entering air temperature cannot be monitored, then the program operates under the assumption that it is constant.
+If your control program does not match these specifications exactly, there are workarounds which can be implemented in the logic. For example, if a supply fan uses an analog input to monitor status by measuing amp draw, then you could throw an *BACnet Binary Value Status* microblock into the logic which turns on when the amp draw is above a certain threshold. Then you would map the status tag to this microblock instead.
 
-If your control program does not match these specifications exactly, there are workarounds which can be implemented in the logic. For example, if a supply fan uses an analog input to monitor status by measuing amp draw, then you could throw an *BACnet Binary Value Status* microblock into the logic which turns on when the amp draw is above a certain threshold. Then you would map the `sfst` tag to this microblock instead.
+You should ensure air and water sources are activated appropriately before running tests. For instance, someone should turn on the RTU's which serve the terminal units. If there are any hot water valves, then the boiler system should also be turned on, and the hot water temperature setpoint should be set to an appropriate value. Due to these considerations, it is not recommended to run this script on a schedule. In the future, I may add functionality which addresses this.
 
-You should ensure air and water sources are activated appropriately before running this test. For instance, someone should turn on the RTU's which serve the terminal units. If there are any hot water valves, then the boiler system should also be turned on, and the hot water temperature setpoint should be set to an appropriate value. Due to these considerations, it is not recommended to run this script on a schedule. In the future, I may add functionality which addresses this.
+Various safeties are hard-coded into the script. For instance, if the leaving air temperature drops below *40&deg;F* or exceeds *120&deg;F*, the script will cease testing the current heating/cooling element. A similar circumstance occurs if the script detects a loss of airflow (i.e, all fan are turned off and the measured airflow is smaller than *90 cfm*).
 
-## High-Level Pseudocode
-
-### Supply Fan, Damper, and Hot Water Valve
-
-1. Lock the hot water valve to 0% open.
-2. Sleep for 30 seconds.
-3. Lock the supply fan command to off.
-4. Wait up to 3 minutes for supply fan status to indicate the fan is off. If the time limit is exceeded, throw an error: *Unresponsive*.
-5. Lock the supply fan command to on.
-6. Wait up to 3 minutes for supply fan status to indicate the fan is on. If the time limit is exceeded, throw an error: *Unresponsive*.
-7. Lock damper position to 0%.
-8. Wait up to 4 minutes for actual damper position to reach the locked position. If the time limit is exceeded, throw an error: *Unresponsive*.
-9. Record the actual airflow (*cfm*) 5 times, waiting 2 seconds between each measurement.
-10. Repeat steps 7-9, incrementing the locked damper position by 5% until 100% is reached. So we have 5 airflow measurements for each damper position which is a multiple of 5%, resulting in 105 total airflow measurements. For each damper position, the 5 corresponding measurements are averaged.
-11. Lock the damper airflow setpoint to the maximum heating *cfm* design parameter or 150 *cfm*, whichever is larger.
-12. Wait up to 4 minutes for actual airflow to come within 50 *cfm* of the heating maximum. An error will **not** be thrown if the time limit is exceeded.
-13. Record the current temperature differential. All future temperature measurements will be adjusted by this value (this reading is treated as the origin of the temperature graph).
-14. Lock the hot water valve to 100% open.
-15. Sleep for 10 seconds.
-16. Record the current temperature differential.
-17. Check for sufficient airflow (either supply fan status is on, or airflow is reading above 90 *cfm*). In the case of insufficient airflow, throw an error: *Loss of Airflow*.
-18. If leaving air temperature exceeds 120&deg;F, skip to step 20.
-19. Repeat steps 15-18 at most 60 times, lasting approximately 10 minutes. After 3.5 minutes, the test may terminate prematurely if the program detects the temperature differential has stabilized before 10 minutes are up.
-20. Revert all node values modified by the script to their original values.
-
-### Supply Fan and Heat Pump
-
-1. Lock the heat pump compressor command to off.
-2. Wait up to 3 minutes for compressor status to indicate the heat pump is off. If the time limit is exceeded, do **not** throw an error.
-3. Lock the supply fan command to off.
-4. Wait up to 3 minutes for supply fan status to indicate the fan is off. If the time limit is exceeded, throw an error: *Unresponsive*.
-5. Lock the supply fan command to on.
-6. Wait up to 3 minutes for supply fan status to indicate the fan is on. If the time limit is exceeded, throw an error: *Unresponsive*.
-7. Lock the heat pump reversing valve command to off.
-8. Wait up to 3 minutes for compressor status to indicate the heat pump is off. If the time limit is exceeded, throw an error: *Compressor Stop Failure*.
-9. Sleep for 8 minutes.
-10. Measure the temperature differential 4 times at 3 second intervals. The average is treated as a baseline (e.g, used as the origin of the temperature graph).
-11. Lock the heat pump compressor command to on.
-12. Wait up to 3 minutes for compressor status to indicate the heat pump is on. If the time limit is exceeded, throw an error: *Compressor Start Failure*.
-13. Sleep for 10 seconds.
-14. Record the current temperature differential.
-15. Check for sufficient airflow (i.e, that supply fan status is on). In the case of insufficient airflow, throw an error: *Loss of Airflow*.
-16. If leaving air temperature is less than 40&deg;F or greater than 120&deg;F, lock the reversing valve command to on if you have not already done so; otherwise, jump to step 18.
-17. Repeat steps 13-16 at most 180 times, lasting approximately 30 minutes. The reversing valve command will be locked to on about half way through the process. After 5 minutes of having the reversing valve locked in either configuration, the test may terminate prematurely if the program detects the temperature differential has stabilized.
-18. Revert all node values modified by the script to their original values.
+**WARNING** *- If used incorrectly, this script can damage equipment / cause other problems. Be sure that you map all nodes correctly because a single mistake can cause failure. Use this script at your own risk.*
 
 ## Interpreting Results
 
-The location column provides a link which navigates to the selected control program in WebCTRL. When you hover over a cell in the duration column, a tooltip tells you the precise start and end time for that test. When you hover over a non-graph cell in the damper airflow column, a tooltip tells you the maximum cooling *cfm* design parameter for that damper. The *export data* button will download all the raw data as a *.json* file.
+The *location* column provides a link which navigates to the selected control program in WebCTRL. The *components* column lists everything in the control program which was successfully mapped. The *duration* column specifies the start and end time for tests. The *external faults* column contains operational errors that occur during a test (e.g, *loss of airflow* during a heating test). The *internal faults* column contains miscellaneous API errors that may occur (e.g, failure to read/write node values).
 
-When you click on a cell in the damper airflow column, the cell will expand into a graph showing airflow (*cfm*) vs. damper position (*%*). When you click on a cell in the temperature differential column, the cell will expand into a graph showing temperature vs. time. The *toggle graph visibility* button can be used to show or hide all graphs at once. Hover over any graph to view the *(x,y)* position of your cursor. Holding *shift* or *ctrl* while hovering locks your cursor position to the nearest data point.
+The *command tests* column indicates whether fans or elements responded appropriately when commanded on/off. The *general tests* column contains results based on analysis of the collected data. Results are color coded. If no problems are detected, green is used. If there is any sort of communication error, magenta is used. Red is generally used for any other sort of problem detected during the test. If anything unexpected occurs, it is recommended that you check the error log page of the commissioning scripts add-on.
 
-Results are color coded. If no problems are detected, green is used with a message: *success*. If there is any sort of communication error or the script is unable to get and set node values, magenta is used with a message: *error*. Red is used for any other sort of problem detected during the test or the subsequent data analysis. The magenta error message can show up anywhere, so we refrain from specifically mentioning it in the following sections. If anything unexpected occurs, it is recommended that you check the error log page of the commissioning scripts add-on.
+The *export data* button downloads all raw data as a *.json* file. The sliders at the top of the output page allow adjustment of data analysis parameters / thresholds. For example, one of the sliders specifies the minimum temperature difference required for a successful heating element test. Hover over any data graph to view the *(x,y)* position of your cursor. Holding *shift* or *ctrl* while hovering locks your cursor position to the nearest data point.
 
-Upon successful data collection, the damper airflow and temperature differential columns support additional analysis based on parameters you provide using the sliders at the top of the output page. After moving the sliders to the designated positions, press the *Reevaluate Data Tolerances* button to apply the new parameters.
+### General Tests
 
-### Supply Fan Tests
-
-The supply fan test columns will display either *success* or *unresponsive*. If a fan is commanded to start, but status remains off, then the *fan start* test has a result of *unresponsive*. If a fan is commanded to stop, but status remains on, then the *fan stop* test has a result of *unresponsive*.
-
-### Damper Airflow Tests
-
-The *damper airflow* test column will display either *success*, *unresponsive*, or *failure*. When the damper fails to attain a specified position after waiting 4 minutes, an *unresponsive* error is thrown. Generic *failure* messages occur when the collected data does not meet expectations. It is expected that airflow is 0 *cfm* when damper position is 0%, and it is expected that airflow increases as damper position increases. A damper error tolerance slider is provided to control how strict these expectations are to be enforced. A checkbox optionally specifies whether to require that maximum attained airflow exceeds the maximum cooling design parameter specified in WebCTRL. The number provided after *success* or *failure* messages indicates the maximum attained airflow.
-
-### Heating/Cooling Performance Tests
-
-Error messages shown in the temperature differential columns are among: *loss of airflow*, *compressor start failure*, *compressor stop failure*, *heating failure*, *cooling failure*, and *erratic temperature sensor*. When supply fan status is off and damper airflow goes below 90 *cfm* at any point during the test, a *loss of airflow* error is thrown. When a heating pump is commanded on but status remains off, a *compressor start failure* error is thrown. When a heating pump is commanded off but status remains on, a *compressor stop failure* error is thrown.
-
-The remaining three error messages are thrown during the data analysis phase. When the maximum attained temperature differential is smaller than the *minimum heating differential* slider, a *heating failure* error is thrown. Similarly, the *minimum cooling differential* slider controls whether a *cooling failure* error is thrown. Cooling performance is evaluated only for heat pumps. The number provided with *success* or *failure* messages indicates the maximum temperature range attained for the duration of the test. When the temperature reading jumps too quickly, an *erratic temperature sensor* error is thrown. For instance, when the *erratic thermostat threshhold* slider is set to 12&deg;F, it means the temperature should not change by more than 12&deg;F in 10 seconds.
+- **Actual Airflow Attained Cooling Max** - When damper position is *100%*, it is expected that airflow meets or exceeds the cooling maximum design parameter. The *damper airflow tolerance* slider gives extra wiggle room as a proportion of the maximum measured airflow.
+- **No Airflow When Damper Closed** - When damper position is *0%*, it is expected that airflow is *0 cfm*. The *damper airflow tolerance* slider gives extra wiggle room as a proportion of the maximum measured airflow.
+- **Airflow Increasing With Damper Position** - It is expected that airflow increases as damper position increases. The *damper airflow tolerance* slider gives extra wiggle room as a proportion of the maximum measured airflow.
+- **Base Temp** - It is expected that the initial leaving air temperature reading is greater than *-50 &deg;F*.
+- **Erratic Thermostat** - It is expected that temperature changes slowly over time. If temperature changes by more than *x* degrees in *10* seconds, where *x* is specified by the *erratic thermostat threshhold* slider, then this test fails.
+- **Heating / Cooling** - It is expected that temperature increases/decreases when heating/cooling elements are active. The *Minimum Heating / Cooling Differential* sliders specify the target temperature change.
+- **Dehumidification** - It is expected that humidity decreases over time while dehumidification mode is active. The *minimum humidity differential* slider specifies how much humidity needs to decrease for a successful test.
+- **Erratic Humidistat** - It is expected that humidity changes slowly over time. If humidity changes by more than *x* percent in *10 seconds*, where *x* is specified by the *erratic humidistat threshold* slider, then this test fails.
+- **Dehumidification Temperature Constant** - It is expected that temperature remains constant during dehumidication mode. If temperature changes by more than *x* degrees, where *x* is specified by the *max temp change during dehumidification* slider, then this test fails.
 
 ### Sample Output
 
@@ -103,28 +63,204 @@ The remaining three error messages are thrown during the data analysis phase. Wh
 
 ## Mappings
 
-Control programs with dampers should be grouped by air source. By limiting the percentage of active tests per group, we can avoid tripping the high static safety alarm on the RTU air source (for a worst case scenario, imagine all VAV dampers locked to 0% while the RTU supply fan is still pumping air into the system). If there are hot water valves, you should also consider grouping by water source. See the following table for a list of mapping tags for this script. Also see [./resources/tags.json](./resources/tags.json) for the tag mappings I used while testing this script.
+Control programs with dampers should be grouped by air source. By limiting the percentage of active tests per group, we can avoid tripping the high static safety alarm on the RTU air source (for a worst case scenario, imagine all VAV dampers locked to 0% while the RTU supply fan is still pumping air into the system). If there are hot water valves, you should also consider grouping by water source. See the following tables for a list of mapping tags for this script. Also see [./resources/tags_ex1.json](./resources/tags_ex1.json) for the tag mappings I used while testing this script. Most of the time, you'll just be changing the base node in the sample expression mappings, but there may be exceptions.
 
+### Sensors
 | Semantic Tag | Sample Expression | Description |
 | - | - | - |
-| `eat` | `eat/present_value` | Monitors entering air temperature (*&deg;F*). |
-| `lat` | `lat/present_value` | Monitors leaving air temperature (*&deg;F*). |
-| `sfst` | `sfst/present_value` | Monitors supply fan status (either `true` or `false`). |
-| `sfss_lock_flag` | `sfss/locked` | Controls whether the supply fan command is locked or unlocked. |
-| `sfss_lock_value` | `sfss/locked_value` | When the supply fan command is locked, it assumes this value. |
-| `damper_position` | `airflow/flow_tab/damper_position` | Monitors the actual damper position (between `0` and `100`). |
-| `damper_lock_flag` | `airflow/flow_tab/lock_flags/damper` | Controls whether damper position is locked or unlocked. |
-| `damper_lock_value` | `airflow/flow_tab/damper_lock` | When damper position is locked, it assumes this value. |
-| `airflow` | `airflow/flow_tab/actual_flow` | Monitors airflow in units of *cfm*. |
-| `airflow_lock_flag` | `airflow/flow_tab/lock_flags/flowsetp` | Controls whether the airflow setpoint is locked or unlocked. |
-| `airflow_lock_value` | `airflow/flow_tab/flowsetp_lock` | When the airflow setpoint is locked, it assumes this value. In the absence of other control, the damper position automatically fluctuates in an attempt to maintain airflow setpoint. |
-| `airflow_max_cool` | `airflow/flow_tab/max_cool` | Monitors the maximum cooling airflow design parameter (*cfm*). |
-| `airflow_max_heat` | `airflow/flow_tab/max_heat` | Monitors the maximum heating airflow design parameter (*cfm*). |
-| `heating_AO_position` | `heat/present_value` | Monitors the percentage of active heating (between `0` and `100`). |
-| `heating_AO_lock_flag` | `heat/locked` | Whether the active heating percentage is locked or unlocked. |
-| `heating_AO_lock_value` | `heat/locked_value` | When the active heating percentage is locked, it assumes this value. |
-| `pump_status` | `comp_st/present_value` | Monitors heat pump compressor status (either `true` or `false`). |
-| `pump_cmd_lock_flag` | `comp_ss/locked` | Whether the heat pump compressor command is locked or unlocked. |
-| `pump_cmd_lock_value` | `comp_ss/locked_value` | When the heat pump compressor command is locked, it assumes this value. |
-| `pump_rev_lock_flag` | `pump_vlv/locked` | Whether the heat pump reversing valve is locked or unlocked |
-| `pump_rev_lock_value` | `pump_vlv/locked_value` | When the heat pump reversing valve is locked, it assumes this value. |
+| `alarm` | `alarm/present_value` | Custom alarm |
+| `eat` | `eat/present_value` | Entering air temperature (EAT) |
+| `eat_status` | `eat/output2` | Whether EAT is valid |
+| `eat_fault` | `eat/status_flags/fault` | Whether EAT has a fault |
+| `lat` | `lat/present_value` | Leaving air temperature (LAT) |
+| `lat_status` | `lat/output2` | Whether LAT is valid |
+| `lat_fault` | `lat/status_flags/fault` | Whether LAT has a fault |
+| `oat` | `oat/present_value` | Outside air temperature (OAT) |
+| `oat_status` | `oat/output2` | Whether OAT is valid |
+| `oat_fault` | `oat/status_flags/fault` | Whether OAT has a fault |
+| `humidity` | `humidity/present_value` | Zone humidity (ZH) |
+| `humidity_status` | `humidity/output2` | Whether ZH is valid |
+| `humidity_fault` | `humidity/status_flags/fault` | Whether ZH has a fault |
+
+If the `alarm` mapping returns *true* at any point, the test is terminated immediately. All the status and fault tag mappings are optional. For instance, `lat` is the only required tag mapping to register a leaving air temperature component. However, it is suggested to map status and fault tags for all applicable components. The OAT tags are not currently used for any test, but they may be sometime in the future.
+
+### Locked Points
+| Semantic Tag | Sample Expression | Description |
+| - | - | - |
+| `on#_lock_flag` | `on#/locked` | Whether the #<sup>th</sup> *on*-point is locked |
+| `on#_lock_value` | `on#/locked_value` | Locking value for the #<sup>th</sup> *on*-point |
+| `on#_lock_min` | `on#/min_pres_value` | Minimum lock value for the #<sup>th</sup> *on*-point |
+| `on#_lock_max` | `on#/max_pres_value` | Maximum lock value for the #<sup>th</sup> *on*-point |
+| `off#_lock_flag` | `off#/locked` | Whether the #<sup>th</sup> *off*-point is locked |
+| `off#_lock_value` | `off#/locked_value` | Locking value for the #<sup>th</sup> *off*-point |
+| `off#_lock_min` | `off#/min_pres_value` | Minimum lock value for the #<sup>th</sup> *off*-point |
+| `off#_lock_max` | `off#/max_pres_value` | Maximum lock value for the #<sup>th</sup> *off*-point |
+
+Each *on*-point is locked on at the beginning of each test. Each *off*-point is locked off at the beginning of each test. The tags with suffix `_lock_flag` or `_lock_value` are required, but all others are optional. The `_lock_min` and `_lock_max` tag suffixes are helpful when the point is analog, so the script knows which lock values constitute *on* and *off*.
+
+For mapping multiple *on* and *off* points, occurences of `#` should be replaced with a number. For instance, one might have mappings for `on1_lock_flag`, `on1_lock_value`, `on2_lock_flag`, and `on2_lock_value`. This numbering schema `#` applies in other sections as well.
+
+### Dehumidification
+| Semantic Tag | Sample Expression | Description |
+| - | - | - |
+| `dehum_lock_flag` | `dehum/locked` | Whether the dehumidification (DEHU) output is locked |
+| `dehum_lock_value` | `dehum/locked_value` | Locking value for the DEHU output |
+| `dehum_lock_min` | `dehum/min_pres_value` | Minimum DEHU lock value |
+| `dehum_lock_max` | `dehum/max_pres_value` | Maximum DEHU lock value |
+| `dehum_fault` | `dehum/status_flags/fault` | Whether DEHU has a fault |
+
+These mappings are meant to control a single analog/binary output. Before testing dehumidification mode, all elements with a reversing command are switched to cooling mode. It is expected that locking this output on is sufficient to simulate/trigger dehumidification mode. The `dehum_lock_flag` and `dehum_lock_value` tags are required, but the others are optional.
+
+### Airflow Dampers
+| Semantic Tag | Sample Expression | Description |
+| - | - | - |
+| `airflow_measured` | `airflow/flow_tab/actual_flow` | Actual measured airflow |
+| `airflow_setp_lock_flag` | `airflow/flow_tab/lock_flags/flowsetp` | Whether the airflow setpoint is locked |
+| `airflow_setp_lock_value` | `airflow/flow_tab/flowsetp_lock` | Locking value for the airflow setpoint |
+| `airflow_for_max_cool` | `airflow/flow_tab/max_cool` | Cooling maximum airflow |
+| `airflow_for_max_heat` | `airflow/flow_tab/max_heat` | Heating maximum airflow |
+| `airflow_damper_lock_flag` | `airflow/flow_tab/lock_flags/damper` | Whether the airflow damper setpoint is locked |
+| `airflow_damper_lock_value` | `airflow/flow_tab/damper_lock` | Locking value for the airflow damper setpoint |
+| `airflow_damper_position` | `airflow/flow_tab/damper_position` | Actual measured damper position |
+| `airflow_fault` | `airflow/flow_tab/status_flags/fault` | Whether the airflow damper has a fault |
+
+All of these mappings are required to define an airflow damper. The base node of these mappings should be to the primary airflow microblock of each control program.
+
+### OA / RA Dampers
+| Semantic Tag | Sample Expression | Description |
+| - | - | - |
+| `oa_damper_lock_flag` | `oa_damper/locked` | Whether OA damper output is locked |
+| `oa_damper_lock_value` | `oa_damper/locked_value` | Locking value for OA damper output |
+| `oa_damper_lock_min` | `oa_damper/min_pres_value` | Minimum OA damper lock value |
+| `oa_damper_lock_max` | `oa_damper/max_pres_value` | Maximum OA damper lock value |
+| `oa_damper_fault` | `oa_damper/status_flags/fault` | Whether the OA damper has a fault |
+| `oa_damper_min_position` | `oa_damper_min/present_value` | Ideal OA damper minimum position when unit is occupied |
+| `ra_damper_lock_flag` | `ra_damper/locked` | Whether RA damper output is locked |
+| `ra_damper_lock_value` | `ra_damper/locked_value` | Locking value for RA damper output |
+| `ra_damper_lock_min` | `ra_damper/min_pres_value` | Minimum RA damper lock value |
+| `ra_damper_lock_max` | `ra_damper/max_pres_value` | Maximum RA damper lock value |
+| `ra_damper_fault` | `ra_damper/status_flags/fault` | Whether the RA damper has a fault |
+
+In the case of a mechanically interlocked OA / RA damper, you should map the `oa_damper_` prefixed tags to the interlocked output, and leave the `ra_damper_` prefixed tags unmapped.
+
+### Fans
+| Semantic Tag | Sample Expression | Description |
+| - | - | - |
+| `fan#_lock_flag` | `fan#/locked` | Whether the #<sup>th</sup> fan output is locked |
+| `fan#_lock_value` | `fan#/locked_value` | Locking value for the #<sup>th</sup> fan output |
+| `fan#_lock_min` | `fan#/min_pres_value` | Minimum lock value for the #<sup>th</sup> fan |
+| `fan#_lock_max` | `fan#/max_pres_value` | Maximum lock value for the #<sup>th</sup> fan |
+| `fan#_fault` | `fan#/status_flags/fault` | Whether the #<sup>th</sup> fan has a fault |
+| `fan#_status` | `fan#_status/present_value` | Whether the #<sup>th</sup> fan has status |
+| `fan#_vfd_lock_flag` | `fan#_vfd/locked` | Whether the #<sup>th</sup> fan VFD output is locked |
+| `fan#_vfd_lock_value` | `fan#_vfd/locked_value` | Locking value for the #<sup>th</sup> fan VFD output |
+| `fan#_vfd_lock_min` | `fan#_vfd/min_pres_value` | Minimum lock value for the #<sup>th</sup> fan VFD |
+| `fan#_vfd_lock_max` | `fan#_vfd/max_pres_value` | Maximum lock value for the #<sup>th</sup> fan VFD |
+| `fan#_vfd_fault` | `fan#_vfd/status_flags/fault` | Whether the #<sup>th</sup> fan VFD has a fault |
+
+Multiple fans may be mapped by replace `#` with a number. If a fan does not have a VFD, then `fan#_lock_flag` and `fan#_lock_value` are required mappings, and everything else is optional. If a fan has a VFD, then `fan#_vfd_lock_flag` and `fan#_vfd_lock_value` are required mappings, and everything else is optional. The script also supports fans that have both outputs (on/off command and modulating VFD).
+
+### Heating / Cooling Elements
+| Semantic Tag | Sample Expression | Description |
+| - | - | - |
+| `e#_#_name` | `@e#_#` | Name of the #<sup>th</sup> element |
+| `e#_#_lock_flag` | `e#_#/locked` | Whether the #<sup>th</sup> element is locked |
+| `e#_#_lock_value` | `e#_#/locked_value` | Locking value for the #<sup>th</sup> element |
+| `e#_#_lock_min` | `e#_#/min_pres_value` | Minimum lock value for the #<sup>th</sup> element |
+| `e#_#_lock_max` | `e#_#/max_pres_value` | Maximum lock value for the #<sup>th</sup> element |
+| `e#_#_fault` | `e#_#/status_flags/fault` | Whether the #<sup>th</sup> element has a fault |
+| `e#_#_status` | `e#_#_status/present_value` | Whether the #<sup>th</sup> element has status |
+| `e#_#_rv_lock_flag` | `e#_#_rv/locked` | Whether the #<sup>th</sup> element reversing command is locked |
+| `e#_#_rv_lock_value` | `e#_#_rv/locked_value` | Locking value for the #<sup>th</sup> element reversing command |
+| `e#_#_rv_lock_min` | `e#_#_rv/min_pres_value` | Minimum lock value for #<sup>th</sup> element reversing command |
+| `e#_#_rv_lock_max` | `e#_#_rv/max_pres_value` | Maximum lock value for #<sup>th</sup> element reversing command |
+| `e#_#_rv_fault` | `e#_#_rv/status_flags/fault` | Whether the #<sup>th</sup> element reversing command has a fault |
+
+`e#_#_lock_flag` and `e#_#_lock_value` are required, but everything else is optional. Note the sample expression for `e#_#_name` begins with `@`, which means it is interpreted literally (as opposed to a node mapping pattern). So you can name the #<sup>th</sup> element explicitly, like `@HW Valve` or `@Heat Pump`.
+
+You can replace `e` with `h` or `c` to denote heating or cooling, respectively. The only practical difference this makes is in determining the damper airflow setpoint (when it exists) during the test. The damper position is set to *100%* for `e` elements. For `h` and `c` components, the damper airflow setpoint is set to the heating and cooling maximums, respectively.
+
+The first number placeholder `#` is a unique identifer for the element, and the second placeholder specifies the stage. For instance, `h3_2` represents the 2<sup>nd</sup> stage of the 3<sup>rd</sup> element (with `h` heating configuration). If you leave the second placeholder blank (e.g, `c6`), then the script autocompletes the stage number as *1* (e.g, `c6_1`).
+
+Regardless of the mode configuration (`e`, `c`, or `h`), the element identifier should be unique. So there should not be mappings for both `c1` and `h1` (in this case, you would likely change the tags to `c1` and `h2` instead).
+
+When the mode configuration is `e`, the script will attempt to detect whether the element is heating or cooling based on how the temperature changes when the element is commanded on. This may be useful in cases where we do not *apriori* know the configuration (e.g, two-pipe systems or heat pumps in some cases). Elements with multiple stages generally should not have reversing command mappings.
+
+It is suggested to have seasonal mappings for some equipment. For instance, it may be harmful to to run a DX compressor in the winter. So the winter mapping should put the DX compressor on a locked *off*-point for the test, whereas the summer mapping would use an element mapping with `c` configuration.
+
+## Sample Mapping + Pseudocode
+### Airflow Damper, Supply Fan, HW Valve, Two Stage Cooling
+```json
+{
+  "lat": "dat/present_value",
+  "lat_status": "dat/output2",
+  "lat_fault": "dat/status_flags/fault",
+
+  "airflow_measured": "airflow/flow_tab/actual_flow",
+  "airflow_setp_lock_flag": "airflow/flow_tab/lock_flags/flowsetp",
+  "airflow_setp_lock_value": "airflow/flow_tab/flowsetp_lock",
+  "airflow_for_max_cool": "airflow/flow_tab/max_cool",
+  "airflow_for_max_heat": "airflow/flow_tab/max_heat",
+  "airflow_damper_lock_flag": "airflow/flow_tab/lock_flags/damper",
+  "airflow_damper_lock_value": "airflow/flow_tab/damper_lock",
+  "airflow_damper_position": "airflow/flow_tab/damper_position",
+  "airflow_fault": "airflow/flow_tab/status_flags/fault",
+  
+  "fan1_lock_flag": "sfss/locked",
+  "fan1_lock_value": "sfss/locked_value",
+  "fan1_lock_min": "sfss/min_pres_value",
+  "fan1_lock_max": "sfss/max_pres_value",
+  "fan1_fault": "sfss/status_flags/fault",
+  "fan1_status": "sfst/present_value",
+
+  "h1_name": "@HW Valve",
+  "h1_lock_flag": "hwv/locked",
+  "h1_lock_value": "hwv/locked_value",
+  "h1_lock_min": "hwv/min_pres_value",
+  "h1_lock_max": "hwv/max_pres_value",
+  "h1_fault": "hwv/status_flags/fault",
+
+  "c2_1_name": "@DX Stage 1",
+  "c2_1_lock_flag": "dx1ss/locked",
+  "c2_1_lock_value": "dx1ss/locked_value",
+  "c2_1_lock_min": "dx1ss/min_pres_value",
+  "c2_1_lock_max": "dx1ss/max_pres_value",
+  "c2_1_fault": "dx1ss/status_flags/fault",
+  "c2_1_status": "dx1st/present_value",
+
+  "c2_2_name": "@DX Stage 2",
+  "c2_2_lock_flag": "dx2ss/locked",
+  "c2_2_lock_value": "dx2ss/locked_value",
+  "c2_2_lock_min": "dx2ss/min_pres_value",
+  "c2_2_lock_max": "dx2ss/max_pres_value",
+  "c2_2_fault": "dx2ss/status_flags/fault",
+  "c2_2_status": "dx2st/present_value"
+}
+```
+1. Lock the HW Valve to *0%*. Lock both DX stages off.
+2. Wait up to *260 seconds* for each DX stage status feedback to turn off.
+3. Lock the airflow damper to *100%*. Lock the supply fan off.
+4. Wait up to *260 seconds* for the supply fan status feedback to turn off.
+5. Lock the supply fan on.
+6. Wait up to *260 seconds* for the supply fan status feedback to turn on.
+7. Repeat the following for $x\in\{100,95,90,85,80,75,70,65,60,55,50,45,40,35,30,25,20,15,10,5,0\}$
+   1. Lock the airflow damper to $x$ *percent*.
+   2. Wait up to *260* seconds for the measured airflow damper position to be within *1%* of $x$.
+   3. Measure the airflow *5 times* at *2 second* intervals, and record the averaged result.
+8. Lock the airflow damper to *100%*.
+9. Wait up to *260 seconds* for the airflow damper position to exceed *80%*.
+10. If the total time taken in steps 2-9 does not exceed *260* seconds, wait until that time has passed.
+11. Measure the temperature *30 times* at *10 second* intervals. This data comprises the first section of the temperature graph.
+12. Lock the HW valve to *100%*. Lock the airflow damper setpoint to the heating maximum.
+13. Measure temperature at *10 second* intervals, and wait for the temperature graph to stabilize.
+14. Lock the HW valve to *0%*.
+15. Measure temperature *26 times* at *10 second* intervals.
+16. Lock stage 1 DX cooling on. Lock the airflow damper setpoint to the cooling maximum.
+17. Wait up to *260 seconds* for the stage 1 DX status feedback to turn on. Measure temperature at *10 second* intervals while waiting for status feedback.
+18. Measure temperature at *10 second* intervals, and wait for the temperature graph to stabilize.
+19. Lock stage 2 DX cooling on.
+20. Wait up to *260 seconds* for the stage 2 DX status feedback to turn on. Measure temperature at *10 second* intervals while waiting for status feedback.
+21. Measure temperature at *10 second* intervals, and wait for the temperature graph to stabilize.
+22. Lock all DX cooling stages off.
+23. Measure temperature *26 times* at *10 second* intervals.
+24. Return all nodes to their default values (e.g, unlock points which were locked earlier in the test).
