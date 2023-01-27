@@ -21,6 +21,7 @@ public class Data implements Comparable<Data> {
   private volatile PrimaryTemp temp;
   private volatile Humidity hum;
   private volatile Output dehum;
+  private volatile BinaryInput dehumStatus;
   private volatile OATemp oat;
   private volatile OADamper oad;
   private volatile Airflow air;
@@ -28,6 +29,8 @@ public class Data implements Comparable<Data> {
   private volatile boolean hasFans = false;
   private volatile Element elements[];
   private volatile int numElements = 0;
+  private volatile boolean dehumStartTest = false;
+  private volatile boolean dehumStopTest = false;
   private volatile boolean alarmTriggered = false;
   private volatile boolean lossOfAirflow = false;
   private volatile Trend tempTrend = null;
@@ -49,6 +52,7 @@ public class Data implements Comparable<Data> {
       temp = new PrimaryTemp(this);
       hum = new Humidity(this);
       dehum = new Output(this, "dehum");
+      dehumStatus = new BinaryInput(this, "dehum_status");
       oat = new OATemp(this);
       oad = new OADamper(this);
       air = new Airflow(this);
@@ -56,6 +60,7 @@ public class Data implements Comparable<Data> {
       if (!temp.isDefined()){ temp = null; }
       if (!hum.isDefined()){ hum = null; }
       if (!dehum.isDefined()){ dehum = null; }
+      if (!dehumStatus.isDefined()){ dehumStatus = null; }
       if (!oat.isDefined()){ oat = null; }
       if (!oad.isDefined()){ oad = null; }
       if (!air.isDefined()){ air = null; }
@@ -451,8 +456,12 @@ public class Data implements Comparable<Data> {
             if ((t=hum.get(5, 2000))==null){
               break testing;
             }
+            if (dehumStatus!=null && !dehumStatus.get(true)){
+              dehumStopTest = true;
+            }
             if (dehum.set(true)){
               humTrend = new Trend(64);
+              humTrend.offset = 45;
               humTrend.add(t);
               while (true){
                 Thread.sleep(10000L);
@@ -478,6 +487,9 @@ public class Data implements Comparable<Data> {
                   seg.highDanger = temp.highLimitPass;
                   break;
                 }
+                if (dehumStatus!=null && !dehumStartTest && !dehumStatus.hasFault() && dehumStatus.get(false)){
+                  dehumStartTest = true;
+                }
               }
             }
           }
@@ -501,6 +513,9 @@ public class Data implements Comparable<Data> {
       }
       if (dehum!=null){
         sb.append("<br>Dehumidification&nbsp;Command");
+        if (dehumStatus!=null){
+          sb.append("&nbsp;+&nbsp;Status");
+        }
       }
       if (oad!=null){
         sb.append("<br>Outdoor&nbsp;Air&nbsp;Damper");
@@ -600,6 +615,7 @@ public class Data implements Comparable<Data> {
     prefix|=addProblem(sb, temp, "Primary Temperature Sensor", prefix);
     prefix|=addProblem(sb, hum, "Humidity Sensor", prefix);
     prefix|=addProblem(sb, dehum, "Dehumidification Command", prefix);
+    prefix|=addProblem(sb, dehumStatus, "Dehumidification Status", prefix);
     prefix|=addProblem(sb, oat, "OAT Sensor", prefix);
     prefix|=addProblem(sb, oad, "OAD Command", prefix);
     prefix|=addProblem(sb, air, "Airflow Microblock", prefix);
@@ -620,6 +636,7 @@ public class Data implements Comparable<Data> {
     prefix|=addFault(sb, temp, "Primary Temperature Sensor", prefix);
     prefix|=addFault(sb, hum, "Humidity Sensor", prefix);
     prefix|=addFault(sb, dehum, "Dehumidification Command", prefix);
+    prefix|=addFault(sb, dehumStatus, "Dehumidification Status", prefix);
     prefix|=addFault(sb, oat, "OAT Sensor", prefix);
     prefix|=addFault(sb, oad, "OAD Command", prefix);
     prefix|=addFault(sb, air, "Airflow Microblock", prefix);
@@ -717,6 +734,16 @@ public class Data implements Comparable<Data> {
     }
     sb.append(",\n\"commandTests\":[\n");
     prefix = false;
+    if (humTrend!=null && dehumStatus!=null){
+      if (prefix){
+        sb.append(",\n");
+      }else{
+        prefix = true;
+      }
+      sb.append("{\n\"name\":\"Dehum\",\n");
+      sb.append("\"start\":").append(dehumStartTest).append(",\n");
+      sb.append("\"stop\":").append(dehumStopTest).append("\n}");
+    }
     if (hasFans && p.ctrlFans){
       for (i=0;i<fans.length;++i){
         if (fans[i]!=null && fans[i].status().isDefined()){

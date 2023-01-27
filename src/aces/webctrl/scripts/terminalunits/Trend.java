@@ -8,6 +8,7 @@ public class Trend {
   public volatile double OFFSET_FACTOR = 0.018;
   public volatile int TRAILING_AVG = 5;
   public volatile int MIDDLE_AVG = 10;
+  public volatile int offset = 15;
   public volatile long[] x;
   public volatile double[] y;
   public volatile int len = 0;
@@ -91,7 +92,7 @@ public class Trend {
    * @return whether this trend appears to have stabalized.
    */
   public boolean hasStabilized(){
-    if (len<start+MIDDLE_AVG+TRAILING_AVG+15){
+    if (len<start+MIDDLE_AVG+TRAILING_AVG+offset){
       return false;
     }
     int i;

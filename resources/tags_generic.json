@@ -22,6 +22,7 @@
   "dehum_lock_min": "dehum/min_pres_value",
   "dehum_lock_max": "dehum/max_pres_value",
   "dehum_fault": "dehum/status_flags/fault",
+  "dehum_status":"dehum_status/present_value",
 
   "off#_lock_flag": "off#/locked",
   "off#_lock_value": "off#/locked_value",

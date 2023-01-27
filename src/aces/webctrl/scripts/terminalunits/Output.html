@@ -393,7 +393,7 @@
                       let xPrev = 0;
                       let yPrev = 0;
                       for (const z of trend){
-                        addTest("Dehumidification", !z["increasing"] && z["max"]-z["min"]>=Number(humMargin.value));
+                        addTest("Dehumidification", !z["increasing"] && z["max"]-z["min"]>=Number(humMargin.value), tdGeneralTests);
                         const xData = z["x"];
                         const yData = z["y"];
                         for (var i = 0; i < yData.length; ++i) {
@@ -411,7 +411,7 @@
                     }
                     addTest("Erratic Humidistat", success, tdGeneralTests);
                     const tHum = y["tempTrend"][y["tempTrend"].length-1];
-                    addTest("Dehumidification Temperature Constant", tHum["max"]-tHum["min"]<Number(humTMargin.value));
+                    addTest("Dehumidification Temperature Constant", tHum["max"]-tHum["min"]<Number(humTMargin.value), tdGeneralTests);
                   }
                 }
               };

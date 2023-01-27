@@ -12,7 +12,7 @@ public class TerminalUnitTest extends Script {
   private volatile String outputString = null;
   private volatile Params p = null;
   @Override public String getDescription(){
-    return "<a href=\"https://github.com/automatic-controls/commissioning-scripts/tree/main/samples/TerminalUnitTest\" target=\"_blank\" style=\"border:none;\">Terminal Unit Commissioning Script</a> v0.2.0<br>Evaluates performance of fans, dampers, heating, cooling, and dehumidification components.";
+    return "<a href=\"https://github.com/automatic-controls/commissioning-scripts/tree/main/samples/TerminalUnitTest\" target=\"_blank\" style=\"border:none;\">Terminal Unit Commissioning Script</a> v0.2.1<br>Evaluates performance of fans, dampers, heating, cooling, and dehumidification components.";
   }
   @Override public String[] getParamNames(){
     return new String[]{"Dampers", "Fans", "Heating / Cooling"};
