@@ -37,8 +37,8 @@ public class Data implements Comparable<Data> {
   private volatile Trend humTrend = null;
   private volatile double baseTemp = 0;
   private volatile String desc = "Untested";
-  private final static int timeMult = 26;
-  private final static long timeout = timeMult*10000L;
+  private volatile int timeMult = 26;
+  private volatile long timeout;
   public Data(ResolvedTestingUnit x, Params p) throws Throwable {
     start = System.currentTimeMillis();
     try{
@@ -47,6 +47,16 @@ public class Data implements Comparable<Data> {
       group = x.getGroup();
       path = x.getDisplayPath();
       link = x.getPersistentLink();
+      try{
+        final String s = x.getValue("timeout_multiplier");
+        if (s!=null){
+          timeMult = Integer.parseInt(s);
+          if (timeMult<1){
+            timeMult = 1;
+          }
+        }
+      }catch(NumberFormatException e){}
+      timeout = timeMult*10000L;
       final boolean ctrl = p.ctrlDampers || p.ctrlFans || p.ctrlTemp;
       alarm = new BinaryInput(this, "alarm");
       temp = new PrimaryTemp(this);
@@ -185,7 +195,7 @@ public class Data implements Comparable<Data> {
           long end = System.currentTimeMillis()+timeout;
           for (i=0;i<fans.length;++i){
             if (fans[i]!=null && fans[i].stopTest!=null && fans[i].stopTest){
-              fans[i].stopTest&=fans[i].status().waitFor(false, end-System.currentTimeMillis(), 3000);
+              fans[i].stopTest&=fans[i].status().waitFor(false, end-System.currentTimeMillis(), 3000L);
             }
           }
           if (alarm!=null && alarm.get(false)){
@@ -204,7 +214,7 @@ public class Data implements Comparable<Data> {
           end = System.currentTimeMillis()+timeout;
           for (i=0;i<fans.length;++i){
             if (fans[i]!=null && fans[i].startTest!=null && fans[i].startTest){
-              fans[i].startTest&=fans[i].status().waitFor(true, end-System.currentTimeMillis(), 3000);
+              fans[i].startTest&=fans[i].status().waitFor(true, end-System.currentTimeMillis(), 3000L);
             }
           }
           if (alarm!=null && alarm.get(false)){
@@ -242,7 +252,7 @@ public class Data implements Comparable<Data> {
         }
         if (p.ctrlTemp && temp!=null && !temp.hasFault() && numElements>0){
           if (air!=null && !air.hasFault() && air.setDamperPosition(100)){
-            air.getDamperPosition().waitForGtr(80, timeout, 3000);
+            air.getDamperPosition().waitForGtr(80, timeout, 3000L);
           }
           if (!hasAirflow()){
             lossOfAirflow = true;

@@ -265,3 +265,5 @@ It is suggested to have seasonal mappings for some equipment. For instance, it m
 22. Lock all DX cooling stages off.
 23. Measure temperature *26 times* at *10 second* intervals.
 24. Return all nodes to their default values (e.g, unlock points which were locked earlier in the test).
+
+- Note: You can use the `timeout_multiplier` mapping for controlling timeout durations to some extent. The default value is `@26`. For example, if this tag was mapped to `@32`, then the *260* second timeouts specified above would be *320* seconds instead.
