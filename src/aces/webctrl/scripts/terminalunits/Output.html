@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <title>Terminal Unit Report</title>
-    __CSS__
+    <link rel="stylesheet" type="text/css" href="main.css"/>
     <script>
       function scatter(w, h, xSuffix, ySuffix, titles, trend){
         if (!xSuffix) {
@@ -178,25 +178,30 @@
         }
         return canvas;
       }
-      function addTest(name, success, parent){
+      function addTest(name, success, parent, filters, filterName){
         const div = document.createElement("DIV");
         div.innerText = name;
         div.style.backgroundColor = success===null?"purple":(success?"darkgreen":"darkred");
         div.style.border = "1px solid deepskyblue";
         div.style.padding = "0.2em";
         div.style.margin = "0.3em 0.1em 0.3em 0.1em";
+        if (!success){
+          filters.set(filterName, true);
+        }
         parent.appendChild(div);
       }
       function draw(parent, data) {
         const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0) / 5;
         const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0) / 3;
+        let displayExtFaults = false;
+        let displayIntFaults = false;
         let displayHumidity = false;
         for (const x of data) {
           let includeExtFaults = false;
           let includeIntFaults = false;
           let includeHumidity = false;
           for (const y of x["equipment"]){
-            if (y["faults"].length>0){
+            if (y["faults"].length>0 || y["alarmTriggered"] || y["lossOfAirflow"]){
               includeExtFaults = true;
             }
             if (y["problems"].length>0){
@@ -206,6 +211,8 @@
               includeHumidity = true;
             }
           }
+          displayExtFaults|=includeExtFaults;
+          displayIntFaults|=includeIntFaults;
           displayHumidity|=includeHumidity;
           const table = document.createElement("TABLE");
           table.style.userSelect = "none";
@@ -272,6 +279,53 @@
             const tr = document.createElement("TR");
             const tdPath = document.createElement("TD");
             const a = document.createElement("A");
+            tr.filters = new Map();
+            tr.filters.set("OnlyWithErrors", false);
+            tr.filters.set("ExtFault", false);
+            tr.filters.set("IntFault", false);
+            tr.filters.set("CommandFail", false);
+            tr.filters.set("AirflowClosed", false);
+            tr.filters.set("AirflowIncrease", false);
+            tr.filters.set("AirflowMax", false);
+            tr.filters.set("BaseTemp", false);
+            tr.filters.set("HeatDif", false);
+            tr.filters.set("CoolDif", false);
+            tr.filters.set("ErraticTemp", false);
+            tr.filters.set("Dehum", false);
+            tr.filters.set("TempDehum", false);
+            tr.filters.set("ErraticHum", false);
+            tr.applyFilters = function(){
+              const visible =
+              filterOnlyWithErrors.checked && tr.filters.get("OnlyWithErrors") ||
+              filterExtFault.checked && tr.filters.get("ExtFault") ||
+              filterIntFault.checked && tr.filters.get("IntFault") ||
+              filterCommandFail.checked && tr.filters.get("CommandFail") ||
+              filterAirflowClosed.checked && tr.filters.get("AirflowClosed") ||
+              filterAirflowIncrease.checked && tr.filters.get("AirflowIncrease") ||
+              filterAirflowMax.checked && tr.filters.get("AirflowMax") ||
+              filterBaseTemp.checked && tr.filters.get("BaseTemp") ||
+              filterHeatDif.checked && tr.filters.get("HeatDif") ||
+              filterCoolDif.checked && tr.filters.get("CoolDif") ||
+              filterErraticTemp.checked && tr.filters.get("ErraticTemp") ||
+              filterDehum.checked && tr.filters.get("Dehum") ||
+              filterTempDehum.checked && tr.filters.get("TempDehum") ||
+              filterErraticHum.checked && tr.filters.get("ErraticHum") ||
+              !filterOnlyWithErrors.checked &&
+              !filterExtFault.checked &&
+              !filterIntFault.checked &&
+              !filterCommandFail.checked &&
+              !filterAirflowClosed.checked &&
+              !filterAirflowIncrease.checked &&
+              !filterAirflowMax.checked &&
+              !filterBaseTemp.checked &&
+              !filterHeatDif.checked &&
+              !filterCoolDif.checked &&
+              !filterErraticTemp.checked &&
+              !filterDehum.checked &&
+              !filterTempDehum.checked &&
+              !filterErraticHum.checked;
+              tr.style.display = visible?"table-row":"none";
+            };
             a.innerText = y["path"].replace(/\s*\/\s*/g, "\n\n");
             a.href = y["link"];
             a.style.border = "none";
@@ -287,34 +341,44 @@
             if (includeExtFaults){
               const tdExtFaults = document.createElement("TD");
               if (y["alarmTriggered"]){
-                addTest("Alarm Triggered", false, tdExtFaults);
+                addTest("Alarm Triggered", false, tdExtFaults, tr.filters, "ExtFault");
               }
               if (y["lossOfAirflow"]){
-                addTest("Loss of Airflow", false, tdExtFaults);
+                addTest("Loss of Airflow", false, tdExtFaults, tr.filters, "ExtFault");
               }
               for (const z of y["faults"]){
-                addTest(z, false, tdExtFaults);
+                addTest(z, false, tdExtFaults, tr.filters, "ExtFault");
               }
               tr.appendChild(tdExtFaults);
             }
             if (includeIntFaults){
               const tdIntFaults = document.createElement("TD");
               for (const z of y["problems"]){
-                addTest(z, null, tdIntFaults);
+                addTest(z, null, tdIntFaults, tr.filters, "IntFault");
               }
               tr.appendChild(tdIntFaults);
             }
             if (ctrlFans || ctrlTemp){
               const tdCommandTests = document.createElement("TD");
               for (const z of y["commandTests"]){
-                addTest(z["name"]+" - Start", z["start"], tdCommandTests);
-                addTest(z["name"]+" - Stop", z["stop"], tdCommandTests);
+                addTest(z["name"]+" - Start", z["start"], tdCommandTests, tr.filters, "CommandFail");
+                addTest(z["name"]+" - Stop", z["stop"], tdCommandTests, tr.filters, "CommandFail");
               }
               tr.appendChild(tdCommandTests);
             }
             if (ctrlDampers || ctrlTemp){
               const tdGeneralTests = document.createElement("TD");
               tr.resetTests = function(){
+                tr.filters.set("AirflowClosed", false);
+                tr.filters.set("AirflowIncrease", false);
+                tr.filters.set("AirflowMax", false);
+                tr.filters.set("BaseTemp", false);
+                tr.filters.set("HeatDif", false);
+                tr.filters.set("CoolDif", false);
+                tr.filters.set("ErraticTemp", false);
+                tr.filters.set("Dehum", false);
+                tr.filters.set("TempDehum", false);
+                tr.filters.set("ErraticHum", false);
                 tdGeneralTests.replaceChildren();
                 if (ctrlDampers && y["airflow"]){
                   const z = y["airflow"];
@@ -322,8 +386,8 @@
                   const airMax = Math.max(...airData);
                   const airCoolMax = z["maxCooling"];
                   const margin = airMax*Number(damperMargin.value)/100;
-                  addTest("Actual Airflow\n"+airMax.toFixed(0)+" cfm\nAttained Cooling Max\n"+airCoolMax+" cfm", airMax*100>=airCoolMax*(100-Number(damperMargin.value)), tdGeneralTests);
-                  addTest("No Airflow When Damper Closed", Math.abs(airData[0])<margin, tdGeneralTests);
+                  addTest("Actual Airflow\n"+airMax.toFixed(0)+" cfm\nAttained Cooling Max\n"+airCoolMax+" cfm", airMax*100>=airCoolMax*(100-Number(damperMargin.value)), tdGeneralTests, tr.filters, "AirflowMax");
+                  addTest("No Airflow When Damper Closed", Math.abs(airData[0])<margin, tdGeneralTests, tr.filters, "AirflowClosed");
                   let inc = true;
                   let prev = airData[0];
                   for (const cur of airData) {
@@ -333,11 +397,11 @@
                     }
                     prev = cur;
                   }
-                  addTest("Airflow Increasing With Damper Position", inc, tdGeneralTests);
+                  addTest("Airflow Increasing With Damper Position", inc, tdGeneralTests, tr.filters, "AirflowIncrease");
                 }
                 if (ctrlTemp && y["baseTemp"]){
                   const baseTemp = y["baseTemp"];
-                  addTest("Base Temp\n"+baseTemp.toFixed(2)+" \u{00B0}F", baseTemp>-50, tdGeneralTests);
+                  addTest("Base Temp\n"+baseTemp.toFixed(2)+" \u{00B0}F", baseTemp>-50, tdGeneralTests, tr.filters, "BaseTemp");
                   const trend = y["tempTrend"];
                   let success = true;
                   {
@@ -360,7 +424,7 @@
                       }
                     }
                   }
-                  addTest("Erratic Thermostat", success, tdGeneralTests);
+                  addTest("Erratic Thermostat", success, tdGeneralTests, tr.filters, "ErraticTemp");
                   {
                     let prevElemCap = 0;
                     let elementCapacity = 0;
@@ -381,7 +445,7 @@
                         }else{
                           prevInc = z["increasing"];
                         }
-                        addTest(z["name"]+"\n"+elementCapacity.toFixed(2)+" \u{00B0}F", (z["increasing"]?z["highDanger"]:z["lowDanger"]) || elementCapacity>=Number(z["increasing"]?heatMargin.value:coolMargin.value), tdGeneralTests);
+                        addTest(z["name"]+"\n"+elementCapacity.toFixed(2)+" \u{00B0}F", (z["increasing"]?z["highDanger"]:z["lowDanger"]) || elementCapacity>=Number(z["increasing"]?heatMargin.value:coolMargin.value), tdGeneralTests, tr.filters, z["increasing"]?"HeatDif":"CoolDif");
                       }
                     }
                   }
@@ -393,7 +457,7 @@
                       let xPrev = 0;
                       let yPrev = 0;
                       for (const z of trend){
-                        addTest("Dehumidification", !z["increasing"] && z["max"]-z["min"]>=Number(humMargin.value), tdGeneralTests);
+                        addTest("Dehumidification", !z["increasing"] && z["max"]-z["min"]>=Number(humMargin.value), tdGeneralTests, tr.filters, "Dehum");
                         const xData = z["x"];
                         const yData = z["y"];
                         for (var i = 0; i < yData.length; ++i) {
@@ -409,11 +473,12 @@
                         }
                       }
                     }
-                    addTest("Erratic Humidistat", success, tdGeneralTests);
+                    addTest("Erratic Humidistat", success, tdGeneralTests, tr.filters, "ErraticHum");
                     const tHum = y["tempTrend"][y["tempTrend"].length-1];
-                    addTest("Dehumidification Temperature Constant", tHum["max"]-tHum["min"]<Number(humTMargin.value), tdGeneralTests);
+                    addTest("Dehumidification Temperature Constant", tHum["max"]-tHum["min"]<Number(humTMargin.value), tdGeneralTests, tr.filters, "TempDehum");
                   }
                 }
+                tr.filters.set("OnlyWithErrors", tr.filters.get("ExtFault")||tr.filters.get("IntFault")||tr.filters.get("CommandFail")||tr.filters.get("AirflowClosed")||tr.filters.get("AirflowIncrease")||tr.filters.get("AirflowMax")||tr.filters.get("BaseTemp")||tr.filters.get("HeatDif")||tr.filters.get("CoolDif")||tr.filters.get("ErraticTemp")||tr.filters.get("Dehum")||tr.filters.get("TempDehum")||tr.filters.get("ErraticHum"));
               };
               tr.resetTests();
               tr.appendChild(tdGeneralTests);
@@ -452,7 +517,7 @@
           parent.appendChild(document.createElement("BR"));
           parent.appendChild(table);
         }
-        const txt = displayHumidity?"default":"none";
+        const txt = displayHumidity?"inline":"none";
         humMarginBreak.style.display = txt;
         humMargin.style.display = txt;
         humMarginLabel.style.display = txt;
@@ -462,6 +527,18 @@
         erraticHumBreak.style.display = txt;
         erraticHum.style.display = txt;
         erraticHumLabel.style.display = txt;
+        filterDehum.style.display = txt;
+        filterTempDehum.style.display = txt;
+        filterErraticHum.style.display = txt;
+        filterDehumLabel.style.display = txt;
+        filterTempDehumLabel.style.display = txt;
+        filterErraticHumLabel.style.display = txt;
+        const txt2 = displayExtFaults?"inline":"none";
+        filterExtFault.style.display = txt2;
+        filterExtFaultLabel.style.display = txt2;
+        const txt3 = displayIntFaults?"inline":"none";
+        filterIntFault.style.display = txt3;
+        filterIntFaultLabel.style.display = txt3;
       }
       function reloadData() {
         const mainDiv = document.getElementById("mainDiv");
@@ -485,6 +562,15 @@
             tr.resetTests();
           }
         }
+        applyFilters();
+      }
+      function applyFilters(){
+        const mainDiv = document.getElementById("mainDiv");
+        for (const tr of mainDiv.getElementsByTagName("TR")){
+          if (tr.applyFilters){
+            tr.applyFilters();
+          }
+        }
       }
       function revertDefaults(){
         damperMargin.value = 8;
@@ -501,6 +587,20 @@
         humTMargin.oninput();
         erraticTemp.oninput();
         erraticHum.oninput();
+        filterOnlyWithErrors.checked = false;
+        filterExtFault.checked = false;
+        filterIntFault.checked = false;
+        filterCommandFail.checked = false;
+        filterAirflowClosed.checked = false;
+        filterAirflowIncrease.checked = false;
+        filterAirflowMax.checked = false;
+        filterBaseTemp.checked = false;
+        filterHeatDif.checked = false;
+        filterCoolDif.checked = false;
+        filterErraticTemp.checked = false;
+        filterDehum.checked = false;
+        filterTempDehum.checked = false;
+        filterErraticHum.checked = false;
         resetTests();
       }
     </script>
@@ -511,7 +611,65 @@
       <h1>Terminal Unit Report</h1>
       <button class="e" onclick="revertDefaults()">Revert to Defaults</button>
       <a class="e" id="exportDataButton" href="#" download="data.json" onclick="prepareDataExport()">Export Data</a>
-      <br>
+      <div style="border:1px solid white;border-radius:0.5em;width:50%;margin-left:25%;margin-right:25%;margin-top:1em;padding-bottom:1em;user-select:none">
+        <h3>Filters</h3>
+        <div class="divGrouping">
+          <input type="checkbox" id="filterOnlyWithErrors" onclick="applyFilters()">
+          <label for="filterOnlyWithErrors" id="filterOnlyWithErrorsLabel">One or more errors</label>
+        </div>
+        <div class="divGrouping">
+          <input type="checkbox" id="filterExtFault" onclick="applyFilters()">
+          <label for="filterExtFault" id="filterExtFaultLabel">External faults</label>
+        </div>
+        <div class="divGrouping">
+          <input type="checkbox" id="filterIntFault" onclick="applyFilters()">
+          <label for="filterIntFault" id="filterIntFaultLabel">Internal faults</label>
+        </div>
+        <div class="divGrouping">
+          <input type="checkbox" id="filterCommandFail" onclick="applyFilters()">
+          <label for="filterCommandFail" id="filterCommandFailLabel">Command failures</label>
+        </div>
+        <div class="divGrouping">
+          <input type="checkbox" id="filterAirflowClosed" onclick="applyFilters()">
+          <label for="filterAirflowClosed" id="filterAirflowClosedLabel">Non-zero airflow for closed damper</label>
+        </div>
+        <div class="divGrouping">
+          <input type="checkbox" id="filterAirflowIncrease" onclick="applyFilters()">
+          <label for="filterAirflowIncrease" id="filterAirflowIncreaseLabel">Airflow fails to increase with damper position</label>
+        </div>
+        <div class="divGrouping">
+          <input type="checkbox" id="filterAirflowMax" onclick="applyFilters()">
+          <label for="filterAirflowMax" id="filterAirflowMaxLabel">Airflow fails to attain cooling maximum</label>
+        </div>
+        <div class="divGrouping">
+          <input type="checkbox" id="filterBaseTemp" onclick="applyFilters()">
+          <label for="filterBaseTemp" id="filterBaseTempLabel">Invalid base temperature</label>
+        </div>
+        <div class="divGrouping">
+          <input type="checkbox" id="filterHeatDif" onclick="applyFilters()">
+          <label for="filterHeatDif" id="filterHeatDifLabel">Heating differential unsatisfied</label>
+        </div>
+        <div class="divGrouping">
+          <input type="checkbox" id="filterCoolDif" onclick="applyFilters()">
+          <label for="filterCoolDif" id="filterCoolDifLabel">Cooling differential unsatisfied</label>
+        </div>
+        <div class="divGrouping">
+          <input type="checkbox" id="filterErraticTemp" onclick="applyFilters()">
+          <label for="filterErraticTemp" id="filterErraticTempLabel">Erratic thermostat</label>
+        </div>
+        <div class="divGrouping">
+          <input type="checkbox" id="filterDehum" onclick="applyFilters()">
+          <label for="filterDehum" id="filterDehumLabel">Humidity does not decrease during dehumidification</label>
+        </div>
+        <div class="divGrouping">
+          <input type="checkbox" id="filterTempDehum" onclick="applyFilters()">
+          <label for="filterTempDehum" id="filterTempDehumLabel">Temperature changes drastically during dehumidification</label>
+        </div>
+        <div class="divGrouping">
+          <input type="checkbox" id="filterErraticHum" onclick="applyFilters()">
+          <label for="filterErraticHum" id="filterErraticHumLabel">Erratic humidistat</label>
+        </div>
+      </div>
       <br id="damperMarginBreak">
       <div class="divGrouping">
         <label for="damperMargin" id="damperMarginLabel"></label>
@@ -559,6 +717,12 @@
         damperMarginBreak.style.display = "none";
         damperMargin.style.display = "none";
         damperMarginLabel.style.display = "none";
+        filterAirflowClosed.style.display = "none";
+        filterAirflowIncrease.style.display = "none";
+        filterAirflowMax.style.display = "none";
+        filterAirflowClosedLabel.style.display = "none";
+        filterAirflowIncreaseLabel.style.display = "none";
+        filterAirflowMaxLabel.style.display = "none";
       }
       if (!ctrlTemp) {
         heatMarginBreak.style.display = "none";
@@ -570,6 +734,14 @@
         erraticTempBreak.style.display = "none";
         erraticTemp.style.display = "none";
         erraticTempLabel.style.display = "none";
+        filterBaseTemp.style.display = "none";
+        filterHeatDif.style.display = "none";
+        filterCoolDif.style.display = "none";
+        filterErraticTemp.style.display = "none";
+        filterBaseTempLabel.style.display = "none";
+        filterHeatDifLabel.style.display = "none";
+        filterCoolDifLabel.style.display = "none";
+        filterErraticTempLabel.style.display = "none";
       }
       humMarginBreak.style.display = "none";
       humMargin.style.display = "none";
@@ -580,6 +752,16 @@
       erraticHumBreak.style.display = "none";
       erraticHum.style.display = "none";
       erraticHumLabel.style.display = "none";
+      filterDehum.style.display = "none";
+      filterTempDehum.style.display = "none";
+      filterErraticHum.style.display = "none";
+      filterDehumLabel.style.display = "none";
+      filterTempDehumLabel.style.display = "none";
+      filterErraticHumLabel.style.display = "none";
+      filterExtFault.style.display = "none";
+      filterExtFaultLabel.style.display = "none";
+      filterIntFault.style.display = "none";
+      filterIntFaultLabel.style.display = "none";
       var DATA = __DATA__;
       draw(mainDiv, DATA);
       if (__NOT_EXITED__) {

@@ -1,6 +1,5 @@
 package aces.webctrl.scripts.terminalunits;
 import aces.webctrl.scripts.commissioning.core.*;
-import aces.webctrl.scripts.commissioning.web.*;
 import javax.servlet.http.*;
 import java.util.*;
 import java.util.concurrent.atomic.*;
@@ -12,7 +11,7 @@ public class TerminalUnitTest extends Script {
   private volatile String outputString = null;
   private volatile Params p = null;
   @Override public String getDescription(){
-    return "<a href=\"https://github.com/automatic-controls/terminal-unit-script\" target=\"_blank\" style=\"border:none;\">Terminal Unit Commissioning Script</a> v0.2.2<br>Evaluates performance of fans, dampers, heating, cooling, and dehumidification components.";
+    return "<a href=\"https://github.com/automatic-controls/terminal-unit-script\" target=\"_blank\" style=\"border:none;\">Terminal Unit Commissioning Script</a> v0.2.3<br>Evaluates performance of fans, dampers, heating, cooling, and dehumidification components.";
   }
   @Override public String[] getParamNames(){
     return new String[]{"Dampers", "Fans", "Heating / Cooling"};
@@ -40,9 +39,18 @@ public class TerminalUnitTest extends Script {
     x.failedAttemptTimeout = 500L;
     data[index] = new Data(x,p);
   }
+  @Override public boolean isArchivePublic(){
+    return true;
+  }
   @Override public String getOutput(boolean email) throws Throwable {
     if (!initialized){
       return null;
+    }
+    if (email){
+      return Utility.loadResourceAsString(TerminalUnitTest.class.getClassLoader(), "aces/webctrl/scripts/terminalunits/EmailOutput.html").replace(
+        "__LINK__",
+        archivedTest.getLink()
+      );
     }
     final boolean notExited = !exited;
     return outputString.replace(
@@ -73,13 +81,6 @@ public class TerminalUnitTest extends Script {
         ):(
           "<br id=\"dataAfterBreak\">"
         )
-      )
-    ).replace(
-      "__CSS__",
-      email ? (
-        "<style>\n"+ProviderCSS.getCSS()+"\n</style>"
-      ):(
-        "<link rel=\"stylesheet\" type=\"text/css\" href=\"main.css\"/>"
       )
     ).replace(
       "__DATA__",
