@@ -9,24 +9,31 @@ public class Output extends Component {
   private volatile String lock_max = "_lock_max";
   private volatile String fault = "_fault";
   private volatile boolean hasLock = false;
+  private volatile boolean hasLockFlag = false;
   private volatile boolean hasBounds = false;
   private volatile boolean hasFault = false;
   private volatile double min = 0;
   private volatile double max = 100;
   private volatile boolean literal = false;
   private volatile boolean locked = false;
+  private volatile String prefix = null;
   public Output(Data d, String prefix) throws InterruptedException {
     super(d);
+    this.prefix = prefix;
     lock_flag = prefix+lock_flag;
     lock_value = prefix+lock_value;
     lock_min = prefix+lock_min;
     lock_max = prefix+lock_max;
     fault = prefix+fault;
-    hasLock = d.x.hasMapping(lock_flag) && d.x.hasMapping(lock_value);
+    hasLock = d.x.hasMapping(lock_value);
+    hasLockFlag = d.x.hasMapping(lock_flag);
     if (hasLock){
-      String s = d.x.getValue(lock_flag);
-      if (s==null){ problem = true; }
-      locked = parseBoolean(s);
+      String s;
+      if (hasLockFlag){
+        s = d.x.getValue(lock_flag);
+        if (s==null){ problem = true; }
+        locked = parseBoolean(s);
+      }
       hasFault = d.x.hasMapping(fault);
       hasBounds = d.x.hasMapping(lock_min) && d.x.hasMapping(lock_max);
       if (hasBounds){
@@ -41,7 +48,9 @@ public class Output extends Component {
           s = null;
           if (x==null || y==null){
             problem = true;
-          }else if (x!=y){
+          }else if (x.equals(y)){
+            literal = true;
+          }else{
             min = Math.min(x,y);
             max = Math.max(x,y);
           }
@@ -56,11 +65,15 @@ public class Output extends Component {
     lock_min = prefix+lock_min;
     lock_max = prefix+lock_max;
     fault = prefix+fault;
-    hasLock = d.x.hasMapping(lock_flag) && d.x.hasMapping(lock_value);
+    hasLock = d.x.hasMapping(lock_value);
+    hasLockFlag = d.x.hasMapping(lock_flag);
     if (hasLock){
-      String s = d.x.getValue(lock_flag);
-      if (s==null){ problem = true; }
-      locked = parseBoolean(s);
+      String s;
+      if (hasLockFlag){
+        s = d.x.getValue(lock_flag);
+        if (s==null){ problem = true; }
+        locked = parseBoolean(s);
+      }
       hasFault = d.x.hasMapping(fault);
       hasBounds = true;
       this.min = min;
@@ -75,7 +88,11 @@ public class Output extends Component {
    * @return whether the lock was released successfully.
    */
   public boolean unlock() throws InterruptedException {
-    if (locked && hasLock){
+    if (!hasLockFlag){
+      locked = false;
+      return true;
+    }
+    if (locked){
       if (d.x.setValueAutoMark(lock_flag, false)){
         locked = false;
       }else{
@@ -89,7 +106,11 @@ public class Output extends Component {
    * @return whether the lock was acquired successfully.
    */
   public boolean lock() throws InterruptedException {
-    if (!locked && hasLock){
+    if (!hasLockFlag){
+      locked = true;
+      return true;
+    }
+    if (!locked){
       if (d.x.setValueAutoMark(lock_flag, true)){
         locked = true;
       }else{
@@ -97,6 +118,10 @@ public class Output extends Component {
       }
     }
     return locked;
+  }
+  private static String doubleToSafeString(double x){
+    final String s = String.valueOf(x);
+    return s.endsWith(".0")?s.substring(0,s.length()-2):s;
   }
   /**
    * Sets the value of this output. If necessary, a lock is acquired on this output.
@@ -106,7 +131,7 @@ public class Output extends Component {
     if (!hasLock){
       return false;
     }
-    if (d.x.setValueAutoMark(lock_value, hasBounds?(value?max:min):(value?"1":"0"))){
+    if (d.x.setValueAutoMark(lock_value, literal?value:(hasBounds?doubleToSafeString(value?max:min):(value?"1":"0")))){
       if (lock()){
         return true;
       }
@@ -124,7 +149,7 @@ public class Output extends Component {
     if (!hasLock){
       return false;
     }
-    if (d.x.setValueAutoMark(lock_value, literal?value:(hasBounds?min+value*(max-min):(value>=0.5?"1":"0")))){
+    if (d.x.setValueAutoMark(lock_value, literal?value:(hasBounds?doubleToSafeString(min+value*(max-min)):(value>=0.5?"1":"0")))){
       if (lock()){
         return true;
       }
@@ -158,5 +183,11 @@ public class Output extends Component {
       return parseBoolean(s,true);
     }
     return false;
+  }
+  /**
+   * @return the tag prefix used to construct this output.
+   */
+  public String getPrefix(){
+    return prefix;
   }
 }

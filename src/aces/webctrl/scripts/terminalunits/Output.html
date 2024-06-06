@@ -222,6 +222,8 @@
           table.appendChild(tbody);
           const trTitle = document.createElement("TR");
           const trHeaders = document.createElement("TR");
+          thead.style.position = "sticky";
+          thead.style.top = "0";
           thead.appendChild(trTitle);
           thead.appendChild(trHeaders);
           const tdTitle = document.createElement("TD");
@@ -389,13 +391,13 @@
                   addTest("Actual Airflow\n"+airMax.toFixed(0)+" cfm\nAttained Cooling Max\n"+airCoolMax+" cfm", airMax*100>=airCoolMax*(100-Number(damperMargin.value)), tdGeneralTests, tr.filters, "AirflowMax");
                   addTest("No Airflow When Damper Closed", Math.abs(airData[0])<margin, tdGeneralTests, tr.filters, "AirflowClosed");
                   let inc = true;
-                  let prev = airData[0];
+                  let max = airData[0];
                   for (const cur of airData) {
-                    if (prev > cur + margin) {
+                    if (max > cur + margin) {
                       inc = false;
                       break;
                     }
-                    prev = cur;
+                    max = Math.max(cur, max);
                   }
                   addTest("Airflow Increasing With Damper Position", inc, tdGeneralTests, tr.filters, "AirflowIncrease");
                 }
@@ -782,6 +784,7 @@
                     testsCompletedBar.style.width = String(ret["completed"]) + '%';
                   }
                   reloadData();
+                  applyFilters();
                 } catch (e) {
                   console.error(e);
                 }

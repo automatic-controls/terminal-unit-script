@@ -44,6 +44,15 @@ if %ERRORLEVEL% NEQ 0 (
   exit
 )
 rmdir /S /Q "%classes%" >nul
+echo Copying to CommissioningScripts repository...
+copy /y "%~dp0%mainClass%.jar" "%~dp0..\commissioning-scripts\src\aces\webctrl\scripts\commissioning\fixed\%mainClass%.jar" >nul
+if %ERRORLEVEL% NEQ 0 (
+  echo.
+  echo Copy task failed.
+  echo Press any key to exit.
+  pause >nul
+  exit
+)
 echo Build successful.
 echo Press any key to exit.
 pause >nul

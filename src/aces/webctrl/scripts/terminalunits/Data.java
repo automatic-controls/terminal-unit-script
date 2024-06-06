@@ -6,10 +6,10 @@ import java.text.*;
 public class Data implements Comparable<Data> {
   private final static DecimalFormat df = new DecimalFormat("0.#");
   static { df.setMaximumFractionDigits(5); }
-  private final static Pattern fanMatcher = Pattern.compile("(fan(\\d++))(?:_vfd)?_lock_flag");
-  private final static Pattern elementMatcher = Pattern.compile("(([ech])(\\d++)(?:_(\\d++))?)_lock_flag");
-  private final static Pattern onMatcher = Pattern.compile("(on\\d++)_lock_flag");
-  private final static Pattern offMatcher = Pattern.compile("(off\\d++)_lock_flag");
+  private final static Pattern fanMatcher = Pattern.compile("(fan(\\d++))(?:_vfd)?_lock_value");
+  private final static Pattern elementMatcher = Pattern.compile("(([ech])(\\d++)(?:_(\\d++))?)_lock_value");
+  private final static Pattern onMatcher = Pattern.compile("(on\\d++)_lock_value");
+  private final static Pattern offMatcher = Pattern.compile("(off\\d++)_lock_value");
   public volatile ResolvedTestingUnit x;
   public volatile Params p;
   public volatile int group;
@@ -25,10 +25,11 @@ public class Data implements Comparable<Data> {
   private volatile OATemp oat;
   private volatile OADamper oad;
   private volatile Airflow air;
-  private volatile Fan fans[];
+  private volatile Fan[] fans;
   private volatile boolean hasFans = false;
-  private volatile Element elements[];
+  private volatile Element[] elements;
   private volatile int numElements = 0;
+  private volatile Output[] onOffLocks;
   private volatile boolean dehumStartTest = false;
   private volatile boolean dehumStopTest = false;
   private volatile boolean alarmTriggered = false;
@@ -47,6 +48,7 @@ public class Data implements Comparable<Data> {
       group = x.getGroup();
       path = x.getDisplayPath();
       link = x.getPersistentLink();
+      x.verbose = Component.parseBoolean(x.getValue("verbose"));
       try{
         final String s = x.getValue("timeout_multiplier");
         if (s!=null){
@@ -76,18 +78,22 @@ public class Data implements Comparable<Data> {
       if (!air.isDefined()){ air = null; }
       {
         Set<String> tags = x.getTags();
-        int n = 0, m = 0;
+        int n = 0, m = 0, k = 0;
         for (String s:tags){
           if (fanMatcher.matcher(s).matches()){
             ++n;
           }else if (elementMatcher.matcher(s).matches()){
             ++m;
+          }else if (ctrl && (onMatcher.matcher(s).matches() || offMatcher.matcher(s).matches())){
+            ++k;
           }
         }
         fans = new Fan[n];
         elements = new Element[m];
+        onOffLocks = new Output[k];
         n = 0;
         m = 0;
+        k = 0;
         String ss;
         Matcher mm;
         for (String s:tags){
@@ -115,9 +121,13 @@ public class Data implements Comparable<Data> {
             }
           }else if (ctrl){
             if ((mm=onMatcher.matcher(s)).matches()){
-              new Output(this, mm.group(1)).set(true);
+              onOffLocks[k] = new Output(this, mm.group(1));
+              onOffLocks[k].set(true);
+              ++k;
             }else if ((mm=offMatcher.matcher(s)).matches()){
-              new Output(this, mm.group(1)).set(false);
+              onOffLocks[k] = new Output(this, mm.group(1));
+              onOffLocks[k].set(false);
+              ++k;
             }
           }
         }
@@ -639,6 +649,9 @@ public class Data implements Comparable<Data> {
         prefix|=addProblem(sb, elements[i], elements[i].ID, prefix);
       }
     }
+    for (i=0;i<onOffLocks.length;++i){
+      prefix|=addProblem(sb, onOffLocks[i], onOffLocks[i].getPrefix(), prefix);
+    }
     sb.append("\n],\n");
     prefix = false;
     sb.append("\"faults\":[\n");
@@ -666,6 +679,9 @@ public class Data implements Comparable<Data> {
       for (i=0;i<elements.length;++i){
         prefix|=addFault(sb, elements[i], elements[i].ID, prefix);
       }
+    }
+    for (i=0;i<onOffLocks.length;++i){
+      prefix|=addFault(sb, onOffLocks[i], onOffLocks[i].getPrefix(), prefix);
     }
     sb.append("\n]");
     if (tempTrend!=null){

@@ -63,7 +63,7 @@ The *export data* button downloads all raw data as a *.json* file. The sliders a
 
 ## Mappings
 
-Control programs with dampers should be grouped by air source. By limiting the percentage of active tests per group, we can avoid tripping the high static safety alarm on the RTU air source (for a worst case scenario, imagine all VAV dampers locked to 0% while the RTU supply fan is still pumping air into the system). If there are hot water valves, you should also consider grouping by water source. See the following tables for a list of mapping tags for this script. Also see [./resources/tags_ex1.json](./resources/tags_ex1.json) for the tag mappings I used while testing this script. Most of the time, you'll just be changing the base node in the sample expression mappings, but there may be exceptions.
+Control programs with dampers should be grouped by air source. By limiting the percentage of active tests per group, we can avoid tripping the high static safety alarm on the RTU air source (for a worst case scenario, imagine all VAV dampers locked to 0% while the RTU supply fan is still pumping air into the system). If there are hot water valves, you should also consider grouping by water source. See the following tables for a list of mapping tags for this script. Also see [./resources/tags_ex1.json](./resources/tags_ex1.json) for the tag mappings I used while testing this script. Most of the time, you'll just be changing the base node in the sample expression mappings, but there may be exceptions. Note: The `verbose` tag may be used to enable logging of errors that occur when setting/getting values.
 
 ### Sensors
 | Semantic Tag | Sample Expression | Description |
