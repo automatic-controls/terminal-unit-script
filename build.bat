@@ -3,11 +3,11 @@ setlocal EnableDelayedExpansion
 echo.
 
 :: Modify these parameters when necessary
-set "WebCTRL=C:\WebCTRL8.0"
+set "WebCTRL=C:\WebCTRL9.0"
 set "mainClass=TerminalUnitTest"
 set "package=aces\webctrl\scripts\terminalunits\"
 set "jdk=%JAVA_HOME%\bin"
-set "release=8"
+set "release=11"
 
 if not exist "%~dp0lib" mkdir "%~dp0lib" >nul 2>nul
 call :collect "%~dp0DEPENDENCIES" "%~dp0lib"
